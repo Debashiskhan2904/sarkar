@@ -1,0 +1,493 @@
+:root {
+  --gold: #c5a059;
+  --gold-light: #e0b96f;
+  --gold-dark: #a18145;
+  --navy: #0a0a0a;
+  --navy-light: #171717;
+  --navy-mid: #262626;
+  --cream: #0a0a0a;
+  --white: #ffffff05;
+  --gray: #888;
+  --gray-light: #ffffff0d;
+  --shadow: none;
+  --shadow-lg: none;
+  --radius: 0px;
+}
+body {
+  font-family: Inter, sans-serif;
+  font-weight: 300;
+  color: #e5e5e5 !important;
+  background: #0a0a0a !important;
+}
+h1,
+h2,
+h3,
+h4,
+h5 {
+  letter-spacing: -0.02em;
+  font-weight: 300 !important;
+}
+.navbar {
+  background: #0a0a0a !important;
+  border-bottom: 1px solid #ffffff0d !important;
+}
+.logo {
+  text-transform: uppercase;
+  letter-spacing: -0.05em;
+  color: #fff !important;
+}
+.logo-icon {
+  background: var(--gold) !important;
+  color: #000 !important;
+  border-radius: 0 !important;
+}
+.nav-links a {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--gray) !important;
+  font-size: 0.8rem !important;
+}
+.nav-links a:hover,
+.nav-links a.active {
+  color: #fff !important;
+  background: 0 0 !important;
+}
+.nav-cta {
+  border: 1px solid var(--gold) !important;
+  color: var(--gold) !important;
+  background: 0 0 !important;
+}
+.hero {
+  background: #0a0a0a !important;
+}
+.hero-video {
+  opacity: 0.6 !important;
+}
+.hero-overlay {
+  background: linear-gradient(#0a0a0a66, #0a0a0a) !important;
+}
+.hero-badge {
+  color: var(--gold) !important;
+  letter-spacing: 0.3em !important;
+  background: 0 0 !important;
+  border: none !important;
+  padding: 0 !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+}
+.hero h1 {
+  letter-spacing: -0.02em !important;
+  color: #fff !important;
+  font-weight: 300 !important;
+}
+.hero h1 span {
+  color: var(--gold) !important;
+  font-family:
+    Playfair Display,
+    serif !important;
+  font-style: italic !important;
+}
+.btn-primary {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #fff !important;
+  box-shadow: none !important;
+  background: 0 0 !important;
+  border: 1px solid #fff3 !important;
+  border-radius: 0 !important;
+  font-size: 0.75rem !important;
+}
+.btn-primary:hover {
+  background: #ffffff0d !important;
+}
+.btn-outline {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #fff !important;
+  border-radius: 0 !important;
+  font-size: 0.75rem !important;
+}
+.btn-dark {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #fff !important;
+  background: #ffffff0d !important;
+  border: 1px solid #ffffff1a !important;
+  border-radius: 0 !important;
+  font-size: 0.75rem !important;
+}
+.btn-dark:hover {
+  background: #ffffff1a !important;
+}
+.section-header .label {
+  color: var(--gold) !important;
+  letter-spacing: 0.3em !important;
+  font-family: Inter, sans-serif !important;
+  font-size: 0.75rem !important;
+}
+.section-header .label:before,
+.section-header .label:after {
+  display: none !important;
+}
+.section-header h2 {
+  color: #fff !important;
+}
+.sector-card,
+.brochure-card,
+.portfolio-card,
+.product-card,
+.job-card,
+.culture-card,
+.leader-card,
+.media-card,
+.quick-card {
+  box-shadow: none !important;
+  background: #ffffff05 !important;
+  border: 1px solid #ffffff0d !important;
+  border-radius: 0 !important;
+}
+.sector-card:hover,
+.brochure-card:hover,
+.portfolio-card:hover,
+.product-card:hover,
+.job-card:hover,
+.media-card:hover,
+.quick-card:hover {
+  box-shadow: none !important;
+  border-color: #fff3 !important;
+  transform: translateY(-4px) !important;
+}
+.sector-overlay {
+  background: linear-gradient(#0000, #0a0a0a) !important;
+}
+.brochure-body h4,
+.portfolio-body h4,
+.product-body h4,
+.job-info h4,
+.culture-card h4,
+.media-body h5,
+.quick-card h4,
+.value-item h4,
+.sector-overlay h3,
+.catalog-banner h3,
+.career-teaser h2,
+.legal-content h2,
+.legal-content h3 {
+  color: #fff !important;
+}
+.catalog-banner,
+.career-teaser,
+.legal-content,
+.value-item,
+.stat-card {
+  box-shadow: none !important;
+  background: #ffffff05 !important;
+  border: 1px solid #ffffff0d !important;
+  border-radius: 0 !important;
+}
+.value-item {
+  border-left: none !important;
+  border-top: 2px solid var(--gold) !important;
+}
+.value-item h4 {
+  color: var(--gold) !important;
+}
+.sector-link,
+.btn-sm {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+  color: #fff !important;
+  background: #ffffff08 !important;
+  border: 1px solid #ffffff1a !important;
+  border-radius: 8px !important;
+  padding: 16px 20px !important;
+  font-size: 1rem !important;
+}
+.form-group select option {
+  color: #fff !important;
+  background-color: #0a0a0a !important;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 1px var(--gold) !important;
+  background: #ffffff0d !important;
+}
+.contact-info h3 {
+  font-family:
+    Playfair Display,
+    serif;
+  font-style: italic;
+  color: var(--gold) !important;
+  margin-bottom: 32px !important;
+  font-size: 2.2rem !important;
+  font-weight: 300 !important;
+}
+.contact-item {
+  border-bottom: 1px solid #ffffff0d;
+  padding-bottom: 24px;
+  margin-bottom: 24px !important;
+}
+.contact-item:last-of-type {
+  border-bottom: none;
+  margin-bottom: 16px !important;
+}
+.contact-icon {
+  color: var(--gold) !important;
+  background: 0 0 !important;
+  border: 1px solid #ffffff1a !important;
+  border-radius: 0 !important;
+  width: 56px !important;
+  height: 56px !important;
+  font-size: 1.4rem !important;
+}
+.contact-item h5 {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #fff !important;
+  margin-bottom: 8px !important;
+  font-size: 0.85rem !important;
+}
+.contact-item p {
+  line-height: 1.6;
+  color: #888 !important;
+}
+.contact-item p a {
+  transition: var(--transition);
+  color: #888 !important;
+}
+.contact-item p a:hover {
+  color: var(--gold) !important;
+}
+.map-container {
+  filter: grayscale() invert() contrast(85%) hue-rotate(180deg);
+  opacity: 0.8;
+  transition: opacity 0.3s;
+  box-shadow: none !important;
+  border: 1px solid #ffffff0d !important;
+  border-radius: 0 !important;
+}
+.map-container:hover {
+  opacity: 1;
+}
+.apply-form {
+  flex-direction: column;
+  display: flex;
+  background: 0 0 !important;
+  border: none !important;
+  padding: 0 !important;
+}
+.apply-form h3 {
+  text-align: left;
+  font-family:
+    Playfair Display,
+    serif;
+  font-style: italic;
+  color: var(--gold) !important;
+  margin-bottom: 32px !important;
+  font-size: 2rem !important;
+  font-weight: 300 !important;
+}
+.form-group label {
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #888 !important;
+  margin-bottom: 8px !important;
+  font-size: 0.85rem !important;
+}
+.file-upload {
+  border-color: #ffffff1a !important;
+  border-radius: 0 !important;
+}
+.footer {
+  background: #0a0a0a !important;
+  border-top: 1px solid #ffffff0d !important;
+}
+.footer h5 {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--gray) !important;
+}
+.admin-panel,
+.admin-header,
+.admin-tabs,
+.admin-table th,
+.modal-content,
+.brochure-frame,
+.brochure-bar,
+.brochure-thumbs,
+.nav-links.open {
+  color: #e5e5e5 !important;
+  background: #0a0a0a !important;
+  border-color: #ffffff0d !important;
+  border-radius: 0 !important;
+}
+.admin-table td {
+  border-color: #ffffff0d !important;
+}
+.admin-header h2,
+.brochure-bar-left .btitle {
+  color: #fff !important;
+}
+.admin-tab {
+  color: var(--gray) !important;
+}
+.admin-tab.active {
+  color: var(--gold) !important;
+  border-bottom-color: var(--gold) !important;
+}
+.stat-card .num {
+  color: var(--gold) !important;
+}
+.quick-icon {
+  background: #ffffff05 !important;
+  border-radius: 0 !important;
+}
+@property --tw-rotate-x {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-rotate-y {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-rotate-z {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-skew-x {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-skew-y {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-border-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+@property --tw-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-inset-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-inset-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-inset-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-ring-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ring-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-inset-ring-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-inset-ring-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-ring-inset {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ring-offset-width {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0;
+}
+@property --tw-ring-offset-color {
+  syntax: "*";
+  inherits: false;
+  initial-value: #fff;
+}
+@property --tw-ring-offset-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-blur {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-brightness {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-contrast {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-grayscale {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-hue-rotate {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-invert {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-opacity {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-saturate {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-sepia {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-drop-shadow {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-drop-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-drop-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-drop-shadow-size {
+  syntax: "*";
+  inherits: false;
+}
