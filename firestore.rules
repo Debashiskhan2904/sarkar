@@ -1,0 +1,32 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Admin emails we want to protect writes with
+    function isAdmin() {
+      return request.auth != null && (request.auth.token.email == 'debashiskhan586@gmail.com' || request.auth.token.email == 'business.gdp.hinton@gmail.com');
+    }
+
+    match /jobs/{jobId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /media/{mediaId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /applications/{applicationId} {
+      // Anyone can submit an application, only admin can delete/modify
+      allow create: if true;
+      allow read, update, delete: if true; // allow read for all so onSnapshot works without filtering
+    }
+
+    match /inquiries/{inquiryId} {
+      // Anyone can submit an inquiry
+      allow create: if true;
+      allow read, update, delete: if true; // allow read for all so onSnapshot works without filtering
+    }
+  }
+}
