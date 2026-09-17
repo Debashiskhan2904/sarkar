@@ -254,23 +254,6 @@ export const AdminPanel = () => {
     }
   };
 
-  const handleRedirectLogin = async () => {
-    if (isLoggingIn) return;
-    setIsLoggingIn(true);
-    try {
-      showToast('Redirecting to Google sign-in...', 'info');
-      await loginWithRedirect();
-    } catch (error: any) {
-      console.error("Redirect login error:", error);
-      if (error?.code === 'auth/unauthorized-domain') {
-        showToast('Domain not authorized in Firebase Console -> Auth -> Settings -> Authorized domains.', 'error');
-      } else {
-        showToast(`Login redirect failed: ${error?.message || 'Error'}`, 'error');
-      }
-      setIsLoggingIn(false);
-    }
-  };
-
   const handleGoogleLogin = async () => {
     if (isLoggingIn) return;
     setIsLoggingIn(true);
@@ -793,60 +776,6 @@ export const AdminPanel = () => {
                     </>
                   )}
                 </motion.button>
-
-                <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={handleRedirectLogin}
-                    disabled={isLoggingIn}
-                    style={{
-                      background: 'transparent',
-                      border: '1px dashed rgba(255, 215, 0, 0.4)',
-                      borderRadius: '8px',
-                      padding: '8px 12px',
-                      color: '#ffd700',
-                      fontSize: '0.8rem',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      width: '100%',
-                      textAlign: 'center'
-                    }}
-                  >
-                    🔒 Sign In via Redirect (No Popups Required)
-                  </button>
-                </div>
-                
-                <p style={{ marginTop: '14px', fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', textAlign: 'center', lineHeight: 1.5 }}>
-                  Note: If popups are disabled on your browser, use the redirect sign-in button above.
-                </p>
-                {typeof window !== 'undefined' && window.self !== window.top && (
-                  <motion.a
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    href={window.location.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      marginTop: '12px',
-                      padding: '10px 16px',
-                      background: 'rgba(212, 175, 55, 0.15)',
-                      border: '1px solid rgba(212, 175, 55, 0.4)',
-                      borderRadius: '8px',
-                      color: '#ffd700',
-                      fontSize: '0.82rem',
-                      fontWeight: 600,
-                      textDecoration: 'none',
-                      width: '100%',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <span>↗ Open App in New Tab</span>
-                  </motion.a>
-                )}
               </motion.div>
               </div>
             ) : (
