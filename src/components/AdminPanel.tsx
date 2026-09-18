@@ -1176,37 +1176,10 @@ export const AdminPanel = () => {
                   </motion.h3>
                   <motion.p 
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-                    style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.92rem', lineHeight: '1.5', marginBottom: '16px' }}
+                    style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.92rem', lineHeight: '1.5', marginBottom: '20px' }}
                   >
                     Secure management console for Sarkar Enterprise.
                   </motion.p>
-
-                  {/* Authorized Admins Badge */}
-                  <div style={{
-                    background: 'rgba(218, 165, 32, 0.08)',
-                    border: '1px solid rgba(218, 165, 32, 0.25)',
-                    borderRadius: '10px',
-                    padding: '10px 14px',
-                    fontSize: '0.78rem',
-                    color: 'rgba(255,255,255,0.85)',
-                    textAlign: 'left',
-                    lineHeight: '1.4'
-                  }}>
-                    <div style={{ color: '#ffd700', fontWeight: 700, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <ShieldCheck size={14} />
-                      <span>Authorized Administrator Accounts</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.76rem', color: 'rgba(255,255,255,0.8)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#25D366' }} />
-                        <strong>B.P. Kishore:</strong> <span style={{ fontFamily: 'monospace' }}>bpkishore2001@gmail.com</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#25D366' }} />
-                        <strong>Debashis Khan:</strong> <span style={{ fontFamily: 'monospace' }}>debashiskhan586@gmail.com</span>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Error Notice */}
@@ -1258,8 +1231,7 @@ export const AdminPanel = () => {
                     cursor: isLoggingIn ? 'not-allowed' : 'pointer',
                     opacity: isLoggingIn ? 0.6 : 1,
                     backdropFilter: 'blur(10px)',
-                    transition: 'all 0.2s ease',
-                    marginBottom: '18px'
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   {isLoggingIn ? (
@@ -1279,141 +1251,6 @@ export const AdminPanel = () => {
                     </>
                   )}
                 </motion.button>
-
-                {/* Divider */}
-                <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: '12px' }}>
-                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
-                  <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                    Instant Backup Login
-                  </span>
-                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
-                </div>
-
-                {/* Access Key Toggle & Form */}
-                {!showKeyLogin ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowKeyLogin(true)}
-                    style={{
-                      background: 'rgba(218, 165, 32, 0.1)',
-                      border: '1px dashed rgba(218, 165, 32, 0.4)',
-                      borderRadius: '10px',
-                      padding: '12px 16px',
-                      width: '100%',
-                      color: '#ffd700',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <Key size={16} />
-                    <span>Sign in with Admin Access Key (Passcode)</span>
-                  </button>
-                ) : (
-                  <motion.form
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    onSubmit={handleKeyLogin}
-                    style={{
-                      background: 'rgba(0,0,0,0.3)',
-                      border: '1px solid rgba(218, 165, 32, 0.3)',
-                      borderRadius: '12px',
-                      padding: '16px',
-                      textAlign: 'left'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                      <span style={{ color: '#ffd700', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Lock size={15} />
-                        Admin Access Key Sign-In
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setShowKeyLogin(false)}
-                        style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '0.75rem' }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-
-                    <div style={{ marginBottom: '10px' }}>
-                      <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontSize: '0.75rem', marginBottom: '4px' }}>
-                        Select Admin Account
-                      </label>
-                      <select
-                        value={selectedAdminProfile}
-                        onChange={(e) => setSelectedAdminProfile(e.target.value)}
-                        style={{
-                          width: '100%',
-                          background: 'rgba(255,255,255,0.06)',
-                          border: '1px solid rgba(255,255,255,0.15)',
-                          borderRadius: '8px',
-                          padding: '8px 10px',
-                          color: '#fff',
-                          fontSize: '0.85rem'
-                        }}
-                      >
-                        <option value="bpkishore2001@gmail.com" style={{ background: '#1c1c1c', color: '#fff' }}>
-                          B.P. Kishore (bpkishore2001@gmail.com)
-                        </option>
-                        <option value="debashiskhan586@gmail.com" style={{ background: '#1c1c1c', color: '#fff' }}>
-                          Debashis Khan (debashiskhan586@gmail.com)
-                        </option>
-                      </select>
-                    </div>
-
-                    <div style={{ marginBottom: '14px' }}>
-                      <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontSize: '0.75rem', marginBottom: '4px' }}>
-                        Master Access Key
-                      </label>
-                      <input
-                        type="password"
-                        placeholder="Enter master key (e.g. Sarkar@Admin2026)"
-                        value={accessKeyInput}
-                        onChange={(e) => setAccessKeyInput(e.target.value)}
-                        style={{
-                          width: '100%',
-                          background: 'rgba(255,255,255,0.06)',
-                          border: '1px solid rgba(255,255,255,0.15)',
-                          borderRadius: '8px',
-                          padding: '10px 12px',
-                          color: '#fff',
-                          fontSize: '0.88rem'
-                        }}
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      style={{
-                        width: '100%',
-                        background: 'linear-gradient(135deg, var(--gold), #d4af37)',
-                        border: 'none',
-                        borderRadius: '8px',
-                        padding: '10px',
-                        color: '#000',
-                        fontWeight: 700,
-                        fontSize: '0.88rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px'
-                      }}
-                    >
-                      <Key size={15} />
-                      <span>Unlock Admin Portal</span>
-                    </button>
-                    <div style={{ marginTop: '8px', fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>
-                      Allows immediate access if Google popups or cookies are blocked on Safari / mobile.
-                    </div>
-                  </motion.form>
-                )}
               </motion.div>
               </div>
             ) : (
