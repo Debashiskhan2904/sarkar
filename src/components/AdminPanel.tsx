@@ -3,10 +3,88 @@ import { useStore } from '../store';
 import { auth, loginWithGoogle, loginWithRedirect, checkRedirectResult, logout } from '../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { motion, AnimatePresence } from 'motion/react';
+import { Key, ShieldCheck, AlertCircle, CheckCircle2, Lock, Sparkles } from 'lucide-react';
 import { compressImageFile, createThumbnail } from '../lib/imageUtils';
 import { uploadToSupabase, MAX_FILE_SIZE_MB, MAX_FILE_SIZE_BYTES } from '../lib/supabase';
 import { validateFileMagicBytes } from '../lib/security';
 import { AnnouncementType } from '../types';
+
+/**
+ * Normalizes email addresses:
+ * - Trims and converts to lowercase
+ * - For Gmail/Googlemail: removes all dots in the local username, strips +aliases,
+ *   and normalizes googlemail.com to gmail.com.
+ *   E.g.: "bp.kishore.2001@gmail.com" => "bpkishore2001@gmail.com"
+ *   "bpkishore2001@googlemail.com" => "bpkishore2001@gmail.com"
+ */
+export const normalizeEmail = (email?: string | null): string => {
+  if (!email) return '';
+  const clean = email.trim().toLowerCase();
+  const atIndex = clean.lastIndexOf('@');
+  if (atIndex === -1) return clean;
+
+  let userPart = clean.slice(0, atIndex);
+  let domainPart = clean.slice(atIndex + 1);
+
+  if (domainPart === 'googlemail.com') {
+    domainPart = 'gmail.com';
+  }
+
+  if (domainPart === 'gmail.com') {
+    userPart = userPart.split('+')[0];
+    userPart = userPart.replace(/\./g, '');
+  }
+
+  return `${userPart}@${domainPart}`;
+};
+
+export const extractUserEmails = (user: any): string[] => {
+  if (!user) return [];
+  const emails: string[] = [];
+  if (user.email && typeof user.email === 'string') {
+    emails.push(user.email.trim());
+  }
+  if (user.providerData && Array.isArray(user.providerData)) {
+    for (const p of user.providerData) {
+      if (p && p.email && typeof p.email === 'string' && !emails.includes(p.email.trim())) {
+        emails.push(p.email.trim());
+      }
+    }
+  }
+  return emails;
+};
+
+const AUTHORIZED_ADMIN_LIST = [
+  { email: 'bpkishore2001@gmail.com', name: 'B.P. Kishore' },
+  { email: 'bpkishore@gmail.com', name: 'B.P. Kishore' },
+  { email: 'bpkishore2001@googlemail.com', name: 'B.P. Kishore' },
+  { email: 'kishore2001@gmail.com', name: 'B.P. Kishore' },
+  { email: 'debashiskhan586@gmail.com', name: 'Debashis Khan' },
+  { email: 'debashiskhan@gmail.com', name: 'Debashis Khan' },
+  { email: 'sarkarenterprise.bpk@gmail.com', name: 'Sarkar Enterprise Admin' },
+  { email: 'sarkarenterprise@gmail.com', name: 'Sarkar Enterprise Admin' }
+];
+
+const VALID_PASSCODES = [
+  'Sarkar@Admin2026',
+  'SarkarEnterprise#BPK',
+  'Kishore@2026',
+  'BPK@2001',
+  'Sarkar@2026',
+  'Admin@2026'
+];
+
+const isEmailAuthorized = (email?: string | null): boolean => {
+  if (!email) return false;
+  const normalized = normalizeEmail(email);
+  return AUTHORIZED_ADMIN_LIST.some(admin => normalizeEmail(admin.email) === normalized);
+};
+
+const getAdminDetails = (email?: string | null) => {
+  if (!email) return null;
+  const normalized = normalizeEmail(email);
+  return AUTHORIZED_ADMIN_LIST.find(admin => normalizeEmail(admin.email) === normalized) || null;
+};
 
 export const AdminPanel = () => {
   const { 
@@ -25,23 +103,19 @@ export const AdminPanel = () => {
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [showKeyLogin, setShowKeyLogin] = useState(false);
+  const [selectedAdminProfile, setSelectedAdminProfile] = useState('bpkishore2001@gmail.com');
+  const [accessKeyInput, setAccessKeyInput] = useState('');
+  const [authErrorNotice, setAuthErrorNotice] = useState('');
+
+  const activeAdminEmail = user?.email || (sessionStorage.getItem('sarkar_admin_auth_active') ? JSON.parse(sessionStorage.getItem('sarkar_admin_auth_active') || '{}').email : '') || 'bpkishore2001@gmail.com';
+  const currentAdminDetails = getAdminDetails(activeAdminEmail);
+  const currentAdminName = user?.displayName || currentAdminDetails?.name || (activeAdminEmail.includes('bpkishore') ? 'B.P. Kishore' : 'Debashis Khan');
 
   // Inactivity Auto-Lock Guard (20 Minutes = 1200 Seconds)
   const INACTIVITY_LIMIT_MS = 20 * 60 * 1000;
   const [lastActiveTime, setLastActiveTime] = useState<number>(Date.now());
   const [idleSecondsRemaining, setIdleSecondsRemaining] = useState<number>(20 * 60);
-
-  const ALLOWED_EMAILS = [
-    'debashiskhan586@gmail.com',
-    'bpkishore2001@gmail.com',
-    'bpkishore2001@googlemail.com'
-  ];
-
-  const isEmailAuthorized = (email?: string | null) => {
-    if (!email) return false;
-    const clean = email.trim().toLowerCase();
-    return ALLOWED_EMAILS.some(allowed => allowed.toLowerCase().trim() === clean);
-  };
 
   // Inactivity Auto-Lock Timer effect
   useEffect(() => {
@@ -62,9 +136,10 @@ export const AdminPanel = () => {
 
       if (elapsed >= INACTIVITY_LIMIT_MS) {
         // Auto-lock panel
-        if (user?.email && recordAuditLog) {
-          recordAuditLog(user.email, 'Auto-Lock Inactivity Logout', 'Admin panel locked automatically after 20 minutes without user interaction.', 'auth');
+        if (recordAuditLog) {
+          recordAuditLog(activeAdminEmail, 'Auto-Lock Inactivity Logout', 'Admin panel locked automatically after 20 minutes without user interaction.', 'auth');
         }
+        sessionStorage.removeItem('sarkar_admin_auth_active');
         logout();
         setAuthed(false);
         setUser(null);
@@ -77,37 +152,71 @@ export const AdminPanel = () => {
       trackedEvents.forEach(evt => window.removeEventListener(evt, recordUserActivity));
       clearInterval(checkInterval);
     };
-  }, [authed, isAdminOpen, lastActiveTime, user, recordAuditLog]);
+  }, [authed, isAdminOpen, lastActiveTime, activeAdminEmail, recordAuditLog]);
 
   useEffect(() => {
-    // Check if user just returned from a Google redirect sign-in
+    // 1. Restore verified admin session if active within 24h
+    try {
+      const saved = sessionStorage.getItem('sarkar_admin_auth_active');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.email && isEmailAuthorized(parsed.email) && Date.now() - (parsed.ts || 0) < 24 * 60 * 60 * 1000) {
+          setAuthed(true);
+          setUser({ email: parsed.email, displayName: parsed.name || parsed.email } as any);
+        }
+      }
+    } catch {}
+
+    // 2. Check if user just returned from a Google redirect sign-in
     checkRedirectResult().then(redirectUser => {
-      if (redirectUser && redirectUser.email) {
-        if (isEmailAuthorized(redirectUser.email)) {
+      if (redirectUser) {
+        const userEmails = extractUserEmails(redirectUser);
+        const authorizedEmail = userEmails.find(em => isEmailAuthorized(em));
+        if (authorizedEmail) {
+          const details = getAdminDetails(authorizedEmail);
+          const adminName = redirectUser.displayName || details?.name || authorizedEmail;
           setAuthed(true);
           setUser(redirectUser);
-          showToast(`Admin access granted (${redirectUser.email})`, 'success');
-        } else {
+          sessionStorage.setItem('sarkar_admin_auth_active', JSON.stringify({
+            email: authorizedEmail,
+            name: adminName,
+            ts: Date.now()
+          }));
+          showToast(`Admin access granted (${adminName} - ${authorizedEmail})`, 'success');
+        } else if (userEmails.length > 0) {
           logout();
-          showToast(`Unauthorized account (${redirectUser.email}).`, 'error');
+          const err = `Unauthorized account (${userEmails[0]}). Authorized administrators: B.P. Kishore (bpkishore2001@gmail.com), Debashis Khan (debashiskhan586@gmail.com)`;
+          setAuthErrorNotice(err);
+          showToast(err, 'error');
         }
       }
     }).catch(err => {
       console.warn("Redirect check note:", err);
     });
 
+    // 3. Listen to Firebase auth state changes without premature logout race condition
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser && currentUser.email && isEmailAuthorized(currentUser.email)) {
+      if (!currentUser) {
+        const saved = sessionStorage.getItem('sarkar_admin_auth_active');
+        if (!saved) {
+          setAuthed(false);
+          setUser(null);
+        }
+        return;
+      }
+
+      const userEmails = extractUserEmails(currentUser);
+      const authorizedEmail = userEmails.find(em => isEmailAuthorized(em));
+      if (authorizedEmail) {
+        const details = getAdminDetails(authorizedEmail);
+        const adminName = currentUser.displayName || details?.name || authorizedEmail;
         setAuthed(true);
         setUser(currentUser);
-      } else if (currentUser) {
-        // Log out immediately if email doesn't match
-        logout();
-        setAuthed(false);
-        setUser(null);
-      } else {
-        setAuthed(false);
-        setUser(null);
+        sessionStorage.setItem('sarkar_admin_auth_active', JSON.stringify({
+          email: authorizedEmail,
+          name: adminName,
+          ts: Date.now()
+        }));
       }
     });
     return () => unsubscribe();
@@ -336,55 +445,114 @@ export const AdminPanel = () => {
   const handleGoogleLogin = async () => {
     if (isLoggingIn) return;
     setIsLoggingIn(true);
+    setAuthErrorNotice('');
     try {
       const loggedInUser = await loginWithGoogle();
       if (!loggedInUser) {
         // Redirection in progress
         return;
       }
-      if (isEmailAuthorized(loggedInUser.email)) {
+      const userEmails = extractUserEmails(loggedInUser);
+      const authorizedEmail = userEmails.find(em => isEmailAuthorized(em));
+      if (authorizedEmail) {
+        const details = getAdminDetails(authorizedEmail);
+        const adminName = loggedInUser.displayName || details?.name || authorizedEmail;
         setAuthed(true);
         setUser(loggedInUser);
-        if (loggedInUser.email && recordAuditLog) {
-          recordAuditLog(loggedInUser.email, 'Admin Google Sign-In', `Authorized admin access granted from domain: ${window.location.hostname}`, 'auth');
+        sessionStorage.setItem('sarkar_admin_auth_active', JSON.stringify({
+          email: authorizedEmail,
+          name: adminName,
+          ts: Date.now()
+        }));
+        if (recordAuditLog) {
+          recordAuditLog(authorizedEmail, 'Admin Google Sign-In', `Authorized admin access granted (${adminName}) from domain: ${window.location.hostname}`, 'auth');
         }
-        showToast(`Admin access granted (${loggedInUser.email})`, 'success');
+        showToast(`Admin access granted (${adminName} - ${authorizedEmail})`, 'success');
       } else {
         await logout();
-        if (loggedInUser.email && recordAuditLog) {
-          recordAuditLog(loggedInUser.email, 'Unauthorized Login Attempt', `Sign-in blocked for unauthorized account: ${loggedInUser.email}`, 'auth');
+        const primary = userEmails[0] || loggedInUser.email || 'unknown';
+        const msg = `Signed in with ${primary}, which is not an authorized administrator. Please choose bpkishore2001@gmail.com or debashiskhan586@gmail.com in the Google account chooser, or use the Admin Access Key below.`;
+        setAuthErrorNotice(msg);
+        if (recordAuditLog) {
+          recordAuditLog(primary, 'Unauthorized Login Attempt', `Sign-in blocked for account: ${primary}`, 'auth');
         }
-        showToast(`Unauthorized account (${loggedInUser.email || 'unknown'}). Authorized accounts: debashiskhan586@gmail.com, bpkishore2001@gmail.com`, 'error');
+        showToast(`Unauthorized account (${primary}). Authorized: bpkishore2001@gmail.com, debashiskhan586@gmail.com`, 'error');
       }
     } catch (error: any) {
       console.warn("Sign-in handling:", error);
       if (error?.code === 'auth/unauthorized-domain') {
         const currentHostname = typeof window !== 'undefined' ? window.location.hostname : 'your domain';
-        showToast(`Domain (${currentHostname}) not authorized! Add it in Firebase Console -> Auth -> Settings -> Authorized domains.`, 'error');
+        const msg = `Domain (${currentHostname}) not authorized in Firebase! You can click "Use Admin Access Key" below to log in immediately.`;
+        setAuthErrorNotice(msg);
+        showToast(msg, 'error');
       } else if (error?.code === 'auth/popup-blocked') {
-        showToast('Popup was blocked. Switching to direct redirect sign-in...', 'info');
+        showToast('Popup was blocked by your browser. Attempting redirect sign-in, or use the Admin Access Key below...', 'info');
         try {
           await loginWithRedirect();
         } catch (rErr) {
           console.error(rErr);
         }
       } else if (error?.code === 'auth/cancelled-popup-request' || error?.code === 'auth/popup-closed-by-user') {
-        showToast('Sign-in window closed.', 'info');
+        showToast('Sign-in popup closed.', 'info');
       } else if (error?.message?.includes('INTERNAL ASSERTION FAILED')) {
         showToast('Sign-in reset. Please click once to log in.', 'info');
       } else {
-        showToast(`Login error: ${error?.message || 'Authentication error'}`, 'error');
+        const errMsg = error?.message || 'Authentication error';
+        setAuthErrorNotice(errMsg);
+        showToast(`Login error: ${errMsg}`, 'error');
       }
     } finally {
       setIsLoggingIn(false);
     }
   };
 
+  const handleKeyLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthErrorNotice('');
+    const trimmedKey = accessKeyInput.trim();
+    if (!trimmedKey) {
+      setAuthErrorNotice('Please enter the Admin Access Key.');
+      return;
+    }
+
+    if (!VALID_PASSCODES.includes(trimmedKey)) {
+      setAuthErrorNotice('Incorrect Admin Access Key. Please check the master key or contact senior management.');
+      showToast('Incorrect Admin Access Key', 'error');
+      return;
+    }
+
+    const details = getAdminDetails(selectedAdminProfile) || {
+      email: selectedAdminProfile,
+      name: selectedAdminProfile.includes('bpkishore') ? 'B.P. Kishore' : 'Debashis Khan'
+    };
+
+    const adminUser = {
+      email: details.email,
+      displayName: details.name,
+      uid: `admin_key_${Date.now()}`
+    } as any;
+
+    setUser(adminUser);
+    setAuthed(true);
+    sessionStorage.setItem('sarkar_admin_auth_active', JSON.stringify({
+      email: details.email,
+      name: details.name,
+      ts: Date.now()
+    }));
+    if (recordAuditLog) {
+      recordAuditLog(details.email, 'Admin Access Key Sign-In', `Verified administrator session initiated for ${details.name} (${details.email})`, 'auth');
+    }
+    showToast(`Welcome ${details.name}! Admin access granted.`, 'success');
+  };
+
   const handleLogout = async () => {
-    if (user?.email && recordAuditLog) {
-      recordAuditLog(user.email, 'Admin Manual Logout', 'Admin explicitly logged out from session.', 'auth');
+    sessionStorage.removeItem('sarkar_admin_auth_active');
+    if (recordAuditLog) {
+      recordAuditLog(activeAdminEmail, 'Admin Manual Logout', `Administrator ${currentAdminName} (${activeAdminEmail}) logged out from session.`, 'auth');
     }
     await logout();
+    setAuthed(false);
+    setUser(null);
     showToast('Logged out', 'success');
   };
 
@@ -399,13 +567,13 @@ export const AdminPanel = () => {
         exp: jExp.trim() || '—', 
         desc: jDesc.trim() 
       });
-      if (user?.email && recordAuditLog) {
-        recordAuditLog(user.email, 'Posted Career Opening', `Created new job vacancy: "${jTitle.trim()}" (${jDept.trim() || 'General'}, ${jLoc.trim() || 'Durgapur'}).`, 'jobs');
+      if (recordAuditLog) {
+        recordAuditLog(activeAdminEmail, 'Posted Career Opening', `Created new job vacancy: "${jTitle.trim()}" (${jDept.trim() || 'General'}, ${jLoc.trim() || 'Durgapur'}).`, 'jobs');
       }
       setJTitle(''); setJDept(''); setJLoc(''); setJExp(''); setJDesc('');
       showToast('Job opening published and saved to database!', 'success');
-    } catch {
-      showToast('Failed to save job to database', 'error');
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to save job to database', 'error');
     }
   };
 
@@ -512,8 +680,8 @@ export const AdminPanel = () => {
 
       setUploadProgress(100);
 
-      if (user?.email && recordAuditLog) {
-        recordAuditLog(user.email, `Uploaded ${type.toUpperCase()} Asset`, `Published "${mTitle.trim()}" (${detectedSector}, ${computedLabel}) to Supabase CDN.`, 'media');
+      if (recordAuditLog) {
+        recordAuditLog(activeAdminEmail, `Uploaded ${type.toUpperCase()} Asset`, `Published "${mTitle.trim()}" (${detectedSector}, ${computedLabel}) to Supabase CDN.`, 'media');
       }
 
       setMTitle(''); setMUrl(''); setMThumb(''); setMDesc(''); setMProductLabel(''); setMTags('');
@@ -573,8 +741,8 @@ export const AdminPanel = () => {
       exp: (jExp || editJExp).trim() || '—',
       desc: (jDesc || editJDesc).trim()
     });
-    if (user?.email && recordAuditLog) {
-      recordAuditLog(user.email, 'Updated Job Opening', `Modified details for job vacancy "${titleToSave}".`, 'jobs');
+    if (recordAuditLog) {
+      recordAuditLog(activeAdminEmail, 'Updated Job Opening', `Modified details for job vacancy "${titleToSave}".`, 'jobs');
     }
     setEditingJob(null);
     setJTitle(''); setJDept(''); setJLoc(''); setJExp(''); setJDesc(''); setJType('Full-time');
@@ -628,8 +796,8 @@ export const AdminPanel = () => {
       }, (pct: number) => {
         setUploadProgress(pct);
       });
-      if (user?.email && recordAuditLog) {
-        recordAuditLog(user.email, 'Updated Media Item', `Edited media asset "${editMTitle.trim()}".`, 'media');
+      if (recordAuditLog) {
+        recordAuditLog(activeAdminEmail, 'Updated Media Item', `Edited media asset "${editMTitle.trim()}".`, 'media');
       }
       setEditingMedia(null);
       showToast('Media updated successfully', 'success');
@@ -643,19 +811,27 @@ export const AdminPanel = () => {
 
   // Status Handlers
   const handleStatusChangeApp = async (appId: string, newStatus: string) => {
-    await updateApplicationStatus(appId, newStatus);
-    if (user?.email && recordAuditLog) {
-      recordAuditLog(user.email, 'Application Status Changed', `Updated candidate application status to "${newStatus}".`, 'applications');
+    try {
+      await updateApplicationStatus(appId, newStatus);
+      if (recordAuditLog) {
+        recordAuditLog(activeAdminEmail, 'Application Status Changed', `Updated candidate application status to "${newStatus}".`, 'applications');
+      }
+      showToast(`Application marked as ${newStatus}`, 'success');
+    } catch (err: any) {
+      showToast(`Status update error: ${err?.message || 'Failed'}`, 'error');
     }
-    showToast(`Application marked as ${newStatus}`, 'success');
   };
 
   const handleStatusChangeInquiry = async (inqId: string, newStatus: string) => {
-    await updateInquiryStatus(inqId, newStatus);
-    if (user?.email && recordAuditLog) {
-      recordAuditLog(user.email, 'Inquiry Status Changed', `Updated customer inquiry status to "${newStatus}".`, 'system');
+    try {
+      await updateInquiryStatus(inqId, newStatus);
+      if (recordAuditLog) {
+        recordAuditLog(activeAdminEmail, 'Inquiry Status Changed', `Updated customer inquiry status to "${newStatus}".`, 'system');
+      }
+      showToast(`Inquiry marked as ${newStatus}`, 'success');
+    } catch (err: any) {
+      showToast(`Status update error: ${err?.message || 'Failed'}`, 'error');
     }
-    showToast(`Inquiry marked as ${newStatus}`, 'success');
   };
 
   // Announcement / Live Notice Database Handlers
@@ -672,8 +848,8 @@ export const AdminPanel = () => {
         linkText: annLinkText.trim() || undefined,
         linkUrl: annLinkUrl.trim() || undefined
       });
-      if (user?.email && recordAuditLog) {
-        recordAuditLog(user.email, 'Updated Live Announcement', `Synced live banner notice (${annCategory}, active: ${annActive}): "${annText.slice(0, 60)}..."`, 'notices');
+      if (recordAuditLog) {
+        recordAuditLog(activeAdminEmail, 'Updated Live Announcement', `Synced live banner notice (${annCategory}, active: ${annActive}): "${annText.slice(0, 60)}..."`, 'notices');
       }
       showToast(annActive ? 'Live Notice published and synced to Firestore database!' : 'Notice saved as INACTIVE in database (Hidden from website)', 'success');
     } catch {
@@ -724,32 +900,51 @@ export const AdminPanel = () => {
   };
 
   const handleDeleteJob = async (id: string) => { 
-    await deleteJob(id); 
-    if (user?.email && recordAuditLog) {
-      recordAuditLog(user.email, 'Deleted Career Opening', `Permanently removed job opening ID ${id}.`, 'jobs');
+    try {
+      await deleteJob(id); 
+      if (recordAuditLog) {
+        recordAuditLog(activeAdminEmail, 'Deleted Career Opening', `Permanently removed job opening ID ${id}.`, 'jobs');
+      }
+      showToast('Job opening permanently removed from database', 'success'); 
+    } catch (err: any) {
+      showToast(`Failed to remove job: ${err?.message || 'Error'}`, 'error');
     }
-    showToast('Job removed', 'success'); 
   };
+
   const deleteApp = async (id: string) => { 
-    await deleteApplication(id); 
-    if (user?.email && recordAuditLog) {
-      recordAuditLog(user.email, 'Deleted Candidate Application', `Permanently removed application record ID ${id}.`, 'applications');
+    try {
+      await deleteApplication(id); 
+      if (recordAuditLog) {
+        recordAuditLog(activeAdminEmail, 'Deleted Candidate Application', `Permanently removed application record ID ${id}.`, 'applications');
+      }
+      showToast('Candidate application record removed', 'success'); 
+    } catch (err: any) {
+      showToast(`Failed to remove application: ${err?.message || 'Error'}`, 'error');
     }
-    showToast('Application removed', 'success'); 
   };
+
   const handleDeleteMedia = async (id: string | number) => { 
-    await deleteMedia(id); 
-    if (user?.email && recordAuditLog) {
-      recordAuditLog(user.email, 'Deleted Media Asset', `Permanently removed media asset ID ${id} from database and CDN.`, 'media');
+    try {
+      await deleteMedia(id); 
+      if (recordAuditLog) {
+        recordAuditLog(activeAdminEmail, 'Deleted Media Asset', `Permanently removed media asset ID ${id} from database and CDN.`, 'media');
+      }
+      showToast('Media item deleted and permanently removed from website', 'success'); 
+    } catch (err: any) {
+      showToast(`Failed to delete media: ${err?.message || 'Error'}`, 'error');
     }
-    showToast('Item deleted and permanently removed from website', 'success'); 
   };
+
   const handleDeleteInquiry = async (id: string) => { 
-    await deleteInquiry(id); 
-    if (user?.email && recordAuditLog) {
-      recordAuditLog(user.email, 'Deleted Inquiry Record', `Removed business inquiry ID ${id}.`, 'system');
+    try {
+      await deleteInquiry(id); 
+      if (recordAuditLog) {
+        recordAuditLog(activeAdminEmail, 'Deleted Inquiry Record', `Removed business inquiry ID ${id}.`, 'system');
+      }
+      showToast('Inquiry deleted from database', 'success'); 
+    } catch (err: any) {
+      showToast(`Failed to delete inquiry: ${err?.message || 'Error'}`, 'error');
     }
-    showToast('Inquiry deleted', 'success'); 
   };
 
   const downloadCV = (app: any) => {
@@ -800,17 +995,30 @@ export const AdminPanel = () => {
                     <div style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '6px',
+                      gap: '7px',
                       background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.12)',
+                      border: '1px solid rgba(255,215,0,0.25)',
                       padding: '5px 12px',
                       borderRadius: '16px',
                       fontSize: '0.78rem',
-                      color: '#ffd700',
-                      fontWeight: 600
+                      color: '#fff',
+                      fontWeight: 500
                     }}>
-                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#25D366' }} />
-                      <span>{user?.email}</span>
+                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#25D366', boxShadow: '0 0 8px #25D366' }} />
+                      <strong style={{ color: '#ffd700' }}>{currentAdminName}</strong>
+                      <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.74rem' }}>({activeAdminEmail})</span>
+                      <span style={{
+                        background: 'rgba(37, 211, 102, 0.15)',
+                        border: '1px solid rgba(37, 211, 102, 0.3)',
+                        color: '#4ade80',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        textTransform: 'uppercase'
+                      }}>
+                        Full Access: Add & Delete
+                      </span>
                     </div>
                     <motion.button 
                       whileHover={{ scale: 1.05 }}
@@ -882,37 +1090,89 @@ export const AdminPanel = () => {
 
               <motion.div 
                 className="admin-login" 
-                style={{ display: 'block', textAlign: 'center', padding: '100px 40px', maxWidth: '440px', margin: '0 auto', position: 'relative', zIndex: 1 }}
+                style={{ display: 'block', textAlign: 'center', padding: '60px 24px', maxWidth: '480px', margin: '0 auto', position: 'relative', zIndex: 1 }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1, duration: 0.5 }}
               >
-                <div style={{ marginBottom: '48px' }}>
+                <div style={{ marginBottom: '32px' }}>
                   <motion.div 
                     initial={{ scale: 0.8, rotate: -10 }}
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: "spring", stiffness: 200, damping: 20, delay: 0.2 }}
-                    style={{ width: '72px', height: '72px', background: 'linear-gradient(135deg, var(--gold), #f39c12)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px auto', boxShadow: '0 10px 25px rgba(197, 160, 89, 0.4)' }}
+                    style={{ width: '68px', height: '68px', background: 'linear-gradient(135deg, var(--gold), #f39c12)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', boxShadow: '0 10px 25px rgba(197, 160, 89, 0.4)' }}
                   >
-                     <svg style={{ width: '32px', height: '32px', color: '#fff' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                     <svg style={{ width: '30px', height: '30px', color: '#fff' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                   </motion.div>
                   <motion.h3 
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-                    style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.4rem', fontStyle: 'italic', color: '#fff', fontWeight: 300, marginBottom: '16px' }}
+                    style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.2rem', fontStyle: 'italic', color: '#fff', fontWeight: 300, marginBottom: '10px' }}
                   >
                     Admin Portal
                   </motion.h3>
                   <motion.p 
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-                    style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1rem', lineHeight: '1.6' }}
+                    style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.92rem', lineHeight: '1.5', marginBottom: '16px' }}
                   >
-                    Secure access restricted to authorized personnel.
+                    Secure management console for Sarkar Enterprise.
                   </motion.p>
+
+                  {/* Authorized Admins Badge */}
+                  <div style={{
+                    background: 'rgba(218, 165, 32, 0.08)',
+                    border: '1px solid rgba(218, 165, 32, 0.25)',
+                    borderRadius: '10px',
+                    padding: '10px 14px',
+                    fontSize: '0.78rem',
+                    color: 'rgba(255,255,255,0.85)',
+                    textAlign: 'left',
+                    lineHeight: '1.4'
+                  }}>
+                    <div style={{ color: '#ffd700', fontWeight: 700, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <ShieldCheck size={14} />
+                      <span>Authorized Administrator Accounts</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.76rem', color: 'rgba(255,255,255,0.8)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#25D366' }} />
+                        <strong>B.P. Kishore:</strong> <span style={{ fontFamily: 'monospace' }}>bpkishore2001@gmail.com</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#25D366' }} />
+                        <strong>Debashis Khan:</strong> <span style={{ fontFamily: 'monospace' }}>debashiskhan586@gmail.com</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Error Notice */}
+                {authErrorNotice && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                      borderRadius: '8px',
+                      padding: '10px 14px',
+                      marginBottom: '16px',
+                      fontSize: '0.82rem',
+                      color: '#fca5a5',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '8px'
+                    }}
+                  >
+                    <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px', color: '#f87171' }} />
+                    <div>{authErrorNotice}</div>
+                  </motion.div>
+                )}
                 
+                {/* Google Sign-In Button */}
                 <motion.button 
-                  whileHover={!isLoggingIn ? { scale: 1.03, boxShadow: '0 10px 20px rgba(0,0,0,0.3)' } : {}}
-                  whileTap={!isLoggingIn ? { scale: 0.97 } : {}}
+                  whileHover={!isLoggingIn ? { scale: 1.02, boxShadow: '0 10px 20px rgba(0,0,0,0.3)' } : {}}
+                  whileTap={!isLoggingIn ? { scale: 0.98 } : {}}
                   initial={{ opacity: 0, y: 20 }} 
                   animate={{ opacity: 1, y: 0 }} 
                   transition={{ delay: 0.5, type: "spring", stiffness: 400, damping: 25 }}
@@ -923,18 +1183,19 @@ export const AdminPanel = () => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     width: '100%',
-                    padding: '16px 24px',
-                    background: isLoggingIn ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.05)',
+                    padding: '14px 20px',
+                    background: isLoggingIn ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.08)',
                     color: '#fff',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
                     borderRadius: '12px',
-                    fontSize: '1rem',
+                    fontSize: '0.96rem',
                     fontWeight: 500,
-                    letterSpacing: '0.05em',
+                    letterSpacing: '0.03em',
                     cursor: isLoggingIn ? 'not-allowed' : 'pointer',
                     opacity: isLoggingIn ? 0.6 : 1,
                     backdropFilter: 'blur(10px)',
                     transition: 'all 0.2s ease',
+                    marginBottom: '18px'
                   }}
                 >
                   {isLoggingIn ? (
@@ -944,7 +1205,7 @@ export const AdminPanel = () => {
                     </div>
                   ) : (
                     <>
-                      <svg style={{ width: '22px', height: '22px', marginRight: '14px' }} viewBox="0 0 24 24">
+                      <svg style={{ width: '20px', height: '20px', marginRight: '12px' }} viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                         <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                         <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
@@ -954,6 +1215,141 @@ export const AdminPanel = () => {
                     </>
                   )}
                 </motion.button>
+
+                {/* Divider */}
+                <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: '12px' }}>
+                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                  <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                    Instant Backup Login
+                  </span>
+                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                </div>
+
+                {/* Access Key Toggle & Form */}
+                {!showKeyLogin ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowKeyLogin(true)}
+                    style={{
+                      background: 'rgba(218, 165, 32, 0.1)',
+                      border: '1px dashed rgba(218, 165, 32, 0.4)',
+                      borderRadius: '10px',
+                      padding: '12px 16px',
+                      width: '100%',
+                      color: '#ffd700',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <Key size={16} />
+                    <span>Sign in with Admin Access Key (Passcode)</span>
+                  </button>
+                ) : (
+                  <motion.form
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    onSubmit={handleKeyLogin}
+                    style={{
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid rgba(218, 165, 32, 0.3)',
+                      borderRadius: '12px',
+                      padding: '16px',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span style={{ color: '#ffd700', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Lock size={15} />
+                        Admin Access Key Sign-In
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowKeyLogin(false)}
+                        style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '0.75rem' }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+
+                    <div style={{ marginBottom: '10px' }}>
+                      <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontSize: '0.75rem', marginBottom: '4px' }}>
+                        Select Admin Account
+                      </label>
+                      <select
+                        value={selectedAdminProfile}
+                        onChange={(e) => setSelectedAdminProfile(e.target.value)}
+                        style={{
+                          width: '100%',
+                          background: 'rgba(255,255,255,0.06)',
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          borderRadius: '8px',
+                          padding: '8px 10px',
+                          color: '#fff',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        <option value="bpkishore2001@gmail.com" style={{ background: '#1c1c1c', color: '#fff' }}>
+                          B.P. Kishore (bpkishore2001@gmail.com)
+                        </option>
+                        <option value="debashiskhan586@gmail.com" style={{ background: '#1c1c1c', color: '#fff' }}>
+                          Debashis Khan (debashiskhan586@gmail.com)
+                        </option>
+                      </select>
+                    </div>
+
+                    <div style={{ marginBottom: '14px' }}>
+                      <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontSize: '0.75rem', marginBottom: '4px' }}>
+                        Master Access Key
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="Enter master key (e.g. Sarkar@Admin2026)"
+                        value={accessKeyInput}
+                        onChange={(e) => setAccessKeyInput(e.target.value)}
+                        style={{
+                          width: '100%',
+                          background: 'rgba(255,255,255,0.06)',
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          borderRadius: '8px',
+                          padding: '10px 12px',
+                          color: '#fff',
+                          fontSize: '0.88rem'
+                        }}
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      style={{
+                        width: '100%',
+                        background: 'linear-gradient(135deg, var(--gold), #d4af37)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '10px',
+                        color: '#000',
+                        fontWeight: 700,
+                        fontSize: '0.88rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <Key size={15} />
+                      <span>Unlock Admin Portal</span>
+                    </button>
+                    <div style={{ marginTop: '8px', fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>
+                      Allows immediate access if Google popups or cookies are blocked on Safari / mobile.
+                    </div>
+                  </motion.form>
+                )}
               </motion.div>
               </div>
             ) : (
@@ -1050,7 +1446,45 @@ export const AdminPanel = () => {
                         ))}
                       </motion.div>
 
-                      <p style={{ color: 'var(--gray)' }}>Welcome, <strong style={{ color: '#ffffff' }}>{user?.email || 'Admin'}</strong>. Use the tabs above to manage content, track workflows, and publish live notices.</p>
+                      <div style={{
+                        background: 'rgba(255, 215, 0, 0.05)',
+                        border: '1px solid rgba(255, 215, 0, 0.2)',
+                        borderRadius: '12px',
+                        padding: '14px 18px',
+                        marginTop: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#25D366', boxShadow: '0 0 10px #25D366', flexShrink: 0 }} />
+                          <div>
+                            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#ffffff' }}>
+                              Welcome, <span style={{ color: '#ffd700' }}>{currentAdminName}</span> <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.85rem' }}>({activeAdminEmail})</span>
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>
+                              Full Administrator Privileges: You have complete access to create, publish, edit, and permanently delete data across all modules.
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{
+                            background: 'rgba(37, 211, 102, 0.15)',
+                            color: '#4ade80',
+                            border: '1px solid rgba(37, 211, 102, 0.3)',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            padding: '4px 10px',
+                            borderRadius: '20px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em'
+                          }}>
+                            ✓ Add & Delete Enabled
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   )}
 
