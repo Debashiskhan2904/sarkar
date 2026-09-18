@@ -902,7 +902,7 @@ export const Media = () => {
     title: m.title || 'Media Asset',
     url: m.url,
     sector: m.sector || 'fmcg',
-    productSub: (m.productSub && m.productSub !== 'all_sub') ? m.productSub : (m.sector === 'jewellery' ? 'jewellery_scheme' : m.sector === 'interior' ? 'modular_kitchen' : 'chanachur'),
+    productSub: m.productSub || (m.sector === 'jewellery' ? 'jewellery_scheme' : m.sector === 'interior' ? 'modular_kitchen' : 'all_sub'),
     productLabel: m.productLabel || (
       m.sector === 'jewellery' ? 'Jewellery Sector' :
       m.sector === 'interior' ? 'Interior Project' :
@@ -933,7 +933,7 @@ export const Media = () => {
     thumb: m.thumb || m.url,
     url: m.url,
     sector: m.sector || 'company',
-    productSub: (m.productSub && m.productSub !== 'all_sub') ? m.productSub : (m.sector === 'jewellery' ? 'jewellery_scheme' : m.sector === 'interior' ? 'modular_kitchen' : 'video_films'),
+    productSub: m.productSub || (m.sector === 'jewellery' ? 'jewellery_scheme' : m.sector === 'interior' ? 'modular_kitchen' : 'video_films'),
     productLabel: m.productLabel || (
       m.sector === 'jewellery' ? 'Jewellery Sector Film' :
       m.sector === 'interior' ? 'Interior Showcase Film' :
@@ -960,6 +960,8 @@ export const Media = () => {
     if (filter === 'fmcg' && item.sector !== 'fmcg') return false;
     if (filter === 'jewellery' && item.sector !== 'jewellery') return false;
     if (filter === 'interior' && item.sector !== 'interior') return false;
+    if (filter === 'company' && item.sector !== 'company') return false;
+    if (filter === 'credentials' && item.sector !== 'credentials' && item.type !== 'credential') return false;
 
     // 2. Product & Section Sub-Filter
     if (productSubFilter !== 'all_sub') {
@@ -968,9 +970,13 @@ export const Media = () => {
       } else if (productSubFilter === 'video_films') {
         if (item.type !== 'video') return false;
       } else if (productSubFilter === 'certificates') {
-        if (item.type !== 'credential' && item.productSub !== 'certificates') return false;
+        if (item.type !== 'credential' && item.productSub !== 'certificates' && item.sector !== 'credentials') return false;
       } else {
-        if (item.productSub !== productSubFilter) return false;
+        // If a specific subfilter like 'chanachur' or 'mosquito' is selected, match productSub or tags
+        const sub = (item.productSub || '').toLowerCase();
+        const matchesSub = sub === productSubFilter.toLowerCase() || (sub === 'all_sub' && filter === 'all');
+        const matchesTag = Array.isArray(item.tags) && item.tags.some((t: string) => t.toLowerCase() === productSubFilter.toLowerCase());
+        if (!matchesSub && !matchesTag) return false;
       }
     }
 
@@ -1002,7 +1008,6 @@ export const Media = () => {
   const subFilterBarRef = useRef<HTMLDivElement>(null);
 
   const subFilterOptions = [
-    { key: 'all_sub', label: 'All Media Assets', icon: '🌟', count: allVisuals.length + allAudios.length + allVideos.length + allCredentials.length },
     { key: 'chanachur', label: t('mediaSubfilterChanachur'), icon: '🌶️', count: allVisuals.filter(v => v.productSub === 'chanachur').length },
     { key: 'mosquito', label: t('mediaSubfilterMosquito'), icon: '🦟', count: allVisuals.filter(v => v.productSub === 'mosquito').length + allAudios.filter(a => a.productSub === 'mosquito').length },
     { key: 'soan_papdi', label: t('mediaSubfilterSoanPapdi'), icon: '🍬', count: allVisuals.filter(v => v.productSub === 'soan_papdi').length },
