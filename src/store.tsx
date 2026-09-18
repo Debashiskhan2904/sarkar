@@ -341,7 +341,7 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         const folders: Array<{ folder: 'photos' | 'videos' | 'audios' | 'certificates'; type: MediaType['type']; sector: string; sub: string; label: string }> = [
           { folder: 'photos', type: 'photo', sector: 'fmcg', sub: 'chanachur', label: 'Priti-Ji Chanachur' },
-          { folder: 'videos', type: 'video', sector: 'fmcg', sub: 'video_films', label: 'Corporate & Product Film' },
+          { folder: 'videos', type: 'video', sector: 'company', sub: 'video_films', label: 'Corporate & Product Film' },
           { folder: 'audios', type: 'audio', sector: 'fmcg', sub: 'audio_jingles', label: 'Audio Campaign Spot' },
           { folder: 'certificates', type: 'credential', sector: 'credentials', sub: 'certificates', label: 'Official Credential' }
         ];
@@ -394,6 +394,7 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     syncSupabaseAssets();
+    const supabaseSyncInterval = setInterval(syncSupabaseAssets, 30000);
 
     // 6. Real-time Inquiries & Live Notice Synchronization from Firestore
     const unsubInquiries = onSnapshot(collection(db, 'inquiries'), (snapshot) => {
@@ -505,6 +506,7 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     return () => { 
+      clearInterval(supabaseSyncInterval);
       unsubDeleted();
       unsubJobs(); 
       unsubApps(); 
