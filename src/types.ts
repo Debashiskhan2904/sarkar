@@ -7,10 +7,16 @@ export interface JobType {
   id: string;
   title: string;
   dept: string;
+  category?: string;
   loc: string;
   type: string;
   exp: string;
+  salary?: string;
   desc: string;
+  requirements?: string[];
+  responsibilities?: string[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AppType {
