@@ -1016,6 +1016,7 @@ export const Media = () => {
     { key: 'jewellery_equipment', label: t('mediaSubfilterGoldProcessing'), icon: '⚙️', count: allVisuals.filter(v => v.productSub === 'jewellery_equipment').length },
     { key: 'modular_kitchen', label: t('mediaSubfilterModularKitchens'), icon: '🍳', count: allVisuals.filter(v => v.productSub === 'modular_kitchen').length + allVideos.filter(v => v.productSub === 'modular_kitchen').length },
     { key: 'luxury_living', label: t('mediaSubfilterLuxuryLiving'), icon: '🛋️', count: allVisuals.filter(v => v.productSub === 'luxury_living').length },
+    { key: 'corporate_branding', label: t('mediaSubfilterCommercialMall'), icon: '🏢', count: allVisuals.filter(v => v.productSub === 'corporate_branding').length + allVideos.filter(v => v.productSub === 'corporate_branding').length },
     { key: 'certificates', label: t('mediaSubfilterCertificates'), icon: '📄', count: allCredentials.length + allVisuals.filter(v => v.productSub === 'certificates').length },
     { key: 'video_films', label: t('mediaSubfilterVideos'), icon: '🎬', count: allVideos.length },
     { key: 'audio_jingles', label: t('mediaSubfilterAudio'), icon: '🎙️', count: allAudios.length },
