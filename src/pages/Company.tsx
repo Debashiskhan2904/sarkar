@@ -12,7 +12,7 @@ import {
   Volume2, Play, ZoomIn, FileText, Download, ArrowRight, Music, Film,
   Briefcase, MapPin, Award, TrendingUp, CheckCircle2, ShieldCheck, ChevronDown, ChevronLeft, 
   IndianRupee, Building2, ChevronRight, X, Send, Search, Filter,
-  FolderDown
+  FolderDown, Megaphone, UserCheck, Home, Gem, Truck, Sparkles
 } from 'lucide-react';
 
 export const Careers = () => {
@@ -127,13 +127,72 @@ export const Careers = () => {
     }
   };
 
-  // Filter jobs by sector
+  const [selectedCategory, setSelectedCategory] = useState('all');
+
+  const jobCategories = [
+    { id: 'all', label: 'All Roles' },
+    { id: 'sales', label: 'Sales' },
+    { id: 'marketing', label: 'Marketing' },
+    { id: 'admin', label: 'Administration' },
+    { id: 'operations', label: 'FMCG & Operations' },
+    { id: 'interior_jewellery', label: 'Interior & Jewellery' },
+  ];
+
+  const getJobCategoryBadge = (job: any) => {
+    if (job.category && job.category !== 'General') return job.category;
+    const text = `${job.title} ${job.dept}`.toLowerCase();
+    if (text.includes('sales') || text.includes('hawker') || text.includes('rcma')) return 'Sales';
+    if (text.includes('marketing') || text.includes('digital')) return 'Marketing';
+    if (text.includes('admin') || text.includes('hr') || text.includes('office')) return 'Administration';
+    if (text.includes('interior') || text.includes('kitchen')) return 'Interior';
+    if (text.includes('jewel') || text.includes('stylo')) return 'Jewellery';
+    if (text.includes('fmcg') || text.includes('logistics') || text.includes('c&f') || text.includes('stockist')) return 'Operations';
+    return job.dept || 'Professional';
+  };
+
+  const getJobIcon = (job: any) => {
+    const text = `${job.title} ${job.category} ${job.dept}`.toLowerCase();
+    if (text.includes('sales') || text.includes('hawker') || text.includes('promoter') || text.includes('rcma')) {
+      return <TrendingUp size={20} color="#ffd700" />;
+    }
+    if (text.includes('marketing') || text.includes('digital') || text.includes('social') || text.includes('brand')) {
+      return <Megaphone size={20} color="#ffd700" />;
+    }
+    if (text.includes('admin') || text.includes('hr') || text.includes('office') || text.includes('coordinator')) {
+      return <UserCheck size={20} color="#ffd700" />;
+    }
+    if (text.includes('interior') || text.includes('modular') || text.includes('kitchen') || text.includes('site')) {
+      return <Home size={20} color="#ffd700" />;
+    }
+    if (text.includes('jewel') || text.includes('gold') || text.includes('diamond')) {
+      return <Gem size={20} color="#ffd700" />;
+    }
+    if (text.includes('fmcg') || text.includes('operations') || text.includes('logistics') || text.includes('c&f') || text.includes('stockist')) {
+      return <Truck size={20} color="#ffd700" />;
+    }
+    return <Briefcase size={20} color="#ffd700" />;
+  };
+
+  // Filter jobs by category
   const filteredJobs = jobs.filter((j: any) => {
-    if (selectedDept === 'all') return true;
-    if (selectedDept === 'field') return j.dept?.includes('Field') || j.type?.includes('Field') || j.title?.includes('RCMA') || j.title?.includes('Hawker');
-    if (selectedDept === 'corporate') return j.dept?.includes('Corporate') || j.dept?.includes('FMCG') || j.title?.includes('BDM');
-    if (selectedDept === 'digital') return j.dept?.includes('Digital') || j.dept?.includes('Marketing') || j.title?.includes('OME');
-    if (selectedDept === 'sector') return j.dept?.includes('Jewellery') || j.dept?.includes('Interior');
+    if (selectedCategory === 'all') return true;
+    const cat = (j.category || '').toLowerCase();
+    const text = `${j.title} ${j.dept} ${j.desc}`.toLowerCase();
+    if (selectedCategory === 'sales') {
+      return cat.includes('sales') || text.includes('sales') || text.includes('hawker') || text.includes('rcma') || text.includes('promoter') || text.includes('bdm');
+    }
+    if (selectedCategory === 'marketing') {
+      return cat.includes('marketing') || text.includes('marketing') || text.includes('digital') || text.includes('social') || text.includes('media');
+    }
+    if (selectedCategory === 'admin') {
+      return cat.includes('admin') || text.includes('administrative') || text.includes('office') || text.includes('hr') || text.includes('coordinator');
+    }
+    if (selectedCategory === 'operations') {
+      return cat.includes('operations') || cat.includes('fmcg') || text.includes('fmcg') || text.includes('logistics') || text.includes('c&f') || text.includes('stockist');
+    }
+    if (selectedCategory === 'interior_jewellery') {
+      return cat.includes('interior') || cat.includes('jewel') || text.includes('interior') || text.includes('modular') || text.includes('jewellery') || text.includes('stylo');
+    }
     return true;
   });
 
@@ -153,12 +212,12 @@ export const Careers = () => {
             <span style={{ color: '#ffd700', fontWeight: 600 }}>{t('breadcrumbCareers')}</span>
           </motion.div>
 
-          {/* Hero Title Section matching Screenshot 1 */}
+          {/* Hero Title Section */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            style={{ textAlign: 'center', marginBottom: '50px' }}
+            style={{ textAlign: 'center', marginBottom: '45px' }}
           >
             <h1 style={{ 
               fontFamily: "'Playfair Display', serif", 
@@ -180,170 +239,338 @@ export const Careers = () => {
             }}>
               {t('careersDesc')}
             </p>
-
           </motion.div>
 
-          {/* Current Openings Section matching Screenshot 2 */}
+          {/* Current Openings Section matching Image Screenshot */}
           <div style={{ 
-            background: '#12151c', 
-            border: '1px solid rgba(255,255,255,0.08)', 
-            borderRadius: '16px', 
-            padding: 'clamp(18px, 4vw, 36px)',
+            background: 'linear-gradient(180deg, #10141d 0%, #0c0f17 100%)', 
+            border: '1px solid rgba(255,215,0,0.15)', 
+            borderRadius: '20px', 
+            padding: 'clamp(20px, 4vw, 40px)',
             marginBottom: '60px',
-            boxShadow: '0 20px 50px rgba(0,0,0,0.4)',
+            boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
             width: '100%',
             boxSizing: 'border-box',
             overflow: 'hidden'
           }}>
-            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            {/* Section Header */}
+            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+              <div style={{ 
+                color: '#ffd700', 
+                fontSize: '0.82rem', 
+                fontWeight: 700, 
+                letterSpacing: '0.2em', 
+                textTransform: 'uppercase', 
+                marginBottom: '8px' 
+              }}>
+                JOIN OUR TEAM
+              </div>
               <h2 style={{ 
                 fontFamily: "'Playfair Display', serif", 
-                color: '#ffffff', 
-                fontSize: 'clamp(1.7rem, 4vw, 2.2rem)', 
+                fontSize: 'clamp(1.9rem, 4vw, 2.5rem)', 
                 fontWeight: 700, 
-                marginBottom: '10px' 
+                marginBottom: '12px',
+                lineHeight: 1.2
               }}>
-                {t('careersOpeningsTitle')}
+                <span style={{ color: '#ffffff' }}>Current </span>
+                <span style={{ color: '#ffd700' }}>Openings</span>
               </h2>
-              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.95rem', maxWidth: '700px', margin: '0 auto', lineHeight: 1.6 }}>
-                {t('careersOpeningsSub')}
+              <p style={{ color: 'rgba(255,255,255,0.68)', fontSize: '0.94rem', maxWidth: '640px', margin: '0 auto', lineHeight: 1.6 }}>
+                Be a part of our growing team and work on meaningful projects. We are looking for talented individuals who are passionate, creative and driven to make an impact.
               </p>
             </div>
 
-            {/* Jobs Cards Grid */}
+            {/* Category Filter Chips */}
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              gap: '10px',
+              marginBottom: '36px'
+            }}>
+              {jobCategories.map((cat) => {
+                const isActive = selectedCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.id)}
+                    style={{
+                      padding: '8px 18px',
+                      borderRadius: '9999px',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.25s ease',
+                      border: isActive ? '1px solid #ffd700' : '1px solid rgba(255,255,255,0.12)',
+                      background: isActive ? 'rgba(255,215,0,0.15)' : 'rgba(255,255,255,0.03)',
+                      color: isActive ? '#ffd700' : 'rgba(255,255,255,0.7)',
+                      boxShadow: isActive ? '0 0 16px rgba(255,215,0,0.25)' : 'none'
+                    }}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Jobs Cards Grid matching Screenshot */}
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', 
-              gap: '20px',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', 
+              gap: '24px',
               width: '100%',
               boxSizing: 'border-box'
             }}>
               <AnimatePresence mode="popLayout">
-                {filteredJobs.map((j: any) => (
-                  <motion.div
-                    key={j.id || j.title}
-                    layout
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.3 }}
-                    whileHover={{ y: -4, borderColor: 'rgba(255,215,0,0.5)' }}
-                    style={{
-                      background: 'rgba(255,255,255,0.025)',
-                      border: '1px solid rgba(255,255,255,0.09)',
-                      borderRadius: '12px',
-                      padding: 'clamp(16px, 3vw, 24px)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justify: 'space-between',
-                      transition: 'all 0.3s ease',
-                      position: 'relative',
-                      overflow: 'hidden',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      minWidth: 0
-                    }}
-                  >
-                    {/* Top Accent line */}
-                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, transparent, #ffd700, transparent)' }} />
-
-                    <div>
-                      {/* Gold Heading Title matching Screenshot 2 */}
-                      <h3 style={{ 
-                        fontFamily: "'Playfair Display', serif", 
-                        color: '#ffd700', 
-                        fontSize: '1.2rem', 
-                        fontWeight: 700, 
-                        lineHeight: 1.35,
-                        marginBottom: '10px' 
-                      }}>
-                        {j.title}
-                      </h3>
-
-                      {/* Description */}
-                      <p style={{ 
-                        color: 'rgba(255,255,255,0.78)', 
-                        fontSize: '0.92rem', 
-                        lineHeight: 1.55, 
-                        marginBottom: '18px' 
-                      }}>
-                        {j.desc}
-                      </p>
-
-                      {/* Meta Details */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
-                        {j.dept && (
-                          <span style={{ fontSize: '0.78rem', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.7)', padding: '4px 10px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <Building2 size={12} /> {j.dept}
-                          </span>
-                        )}
-                        {j.loc && (
-                          <span style={{ fontSize: '0.78rem', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.7)', padding: '4px 10px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <MapPin size={12} /> {j.loc}
-                          </span>
-                        )}
-                        {j.exp && (
-                          <span style={{ fontSize: '0.78rem', background: 'rgba(255,215,0,0.1)', color: '#ffd700', padding: '4px 10px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <Briefcase size={12} /> {j.exp}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      {/* Card Footer matching Screenshot 2 style (e.g., Full-time / Field) */}
+                {filteredJobs.map((j: any) => {
+                  const categoryBadge = getJobCategoryBadge(j);
+                  return (
+                    <motion.div
+                      key={j.id || j.title}
+                      layout
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.3 }}
+                      whileHover={{ y: -5, borderColor: 'rgba(255,215,0,0.45)' }}
+                      style={{
+                        background: '#0c1017',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '16px',
+                        padding: 'clamp(20px, 3vw, 26px)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        transition: 'all 0.3s ease',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        minWidth: 0,
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+                      }}
+                    >
+                      {/* Top Glowing Accent Line */}
                       <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justify: 'space-between', 
-                        borderTop: '1px solid rgba(255,255,255,0.06)', 
-                        paddingTop: '14px',
-                        marginTop: '10px'
-                      }}>
-                        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', fontWeight: 500 }}>
-                          {j.type || t('fullTime')}
-                        </span>
+                        position: 'absolute', 
+                        top: 0, 
+                        left: 0, 
+                        right: 0, 
+                        height: '2.5px', 
+                        background: 'linear-gradient(90deg, transparent, #ffd700, transparent)',
+                        boxShadow: '0 0 10px rgba(255,215,0,0.5)'
+                      }} />
 
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button
-                            onClick={() => setActiveModalJob(j)}
-                            style={{
-                              background: 'transparent',
-                              border: '1px solid rgba(255,215,0,0.3)',
-                              color: '#ffd700',
-                              padding: '6px 12px',
-                              borderRadius: '6px',
-                              fontSize: '0.8rem',
-                              fontWeight: 600,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {t('details')}
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedRole(j.title);
-                              document.getElementById('applyFormContainer')?.scrollIntoView({ behavior: 'smooth' });
-                            }}
-                            style={{
-                              background: 'linear-gradient(135deg, #ffd700, #eab308)',
-                              border: 'none',
-                              color: '#000000',
-                              padding: '6px 14px',
-                              borderRadius: '6px',
-                              fontSize: '0.82rem',
-                              fontWeight: 700,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {t('careersApplyNow')}
-                          </button>
+                      <div>
+                        {/* Top Card Bar: Icon on Left, Category Tag on Right */}
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between',
+                          marginBottom: '18px'
+                        }}>
+                          <div style={{
+                            width: '44px',
+                            height: '44px',
+                            borderRadius: '12px',
+                            background: 'rgba(255,215,0,0.1)',
+                            border: '1px solid rgba(255,215,0,0.3)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            {getJobIcon(j)}
+                          </div>
+
+                          <div style={{
+                            padding: '4px 12px',
+                            borderRadius: '9999px',
+                            background: '#231a0e',
+                            border: '1px solid rgba(255,215,0,0.3)',
+                            color: '#ffd700',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            letterSpacing: '0.04em'
+                          }}>
+                            {categoryBadge}
+                          </div>
+                        </div>
+
+                        {/* Title matching font in screenshot */}
+                        <h3 style={{ 
+                          fontFamily: "'Playfair Display', serif", 
+                          color: '#ffffff', 
+                          fontSize: '1.25rem', 
+                          fontWeight: 700, 
+                          lineHeight: 1.35,
+                          marginBottom: '10px'
+                        }}>
+                          {j.title}
+                        </h3>
+
+                        {/* Description */}
+                        <p style={{ 
+                          color: 'rgba(255,255,255,0.65)', 
+                          fontSize: '0.88rem', 
+                          lineHeight: 1.55, 
+                          marginBottom: '20px',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 3,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          minHeight: '56px'
+                        }}>
+                          {j.desc}
+                        </p>
+
+                        {/* 4-Field Grid: Location, Type, Experience, Salary matching screenshot */}
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: '1fr 1fr', 
+                          gap: '12px 10px', 
+                          paddingTop: '16px',
+                          marginBottom: '20px',
+                          borderTop: '1px solid rgba(255,255,255,0.07)',
+                          fontSize: '0.82rem',
+                          color: 'rgba(255,255,255,0.78)'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                            <MapPin size={14} color="#ffd700" style={{ flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{j.loc || 'Durgapur, WB'}</span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                            <Briefcase size={14} color="#ffd700" style={{ flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{j.type || 'Full-time'}</span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                            <Award size={14} color="#ffd700" style={{ flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{j.exp || '1-3 years exp'}</span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ffd700', fontWeight: 600, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                            <IndianRupee size={14} color="#ffd700" style={{ flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{j.salary || 'Competitive CTC'}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
+
+                      {/* Card Action Buttons matching screenshot */}
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: '1fr 1fr', 
+                        gap: '10px',
+                        paddingTop: '12px',
+                        borderTop: '1px solid rgba(255,255,255,0.06)'
+                      }}>
+                        <button
+                          onClick={() => setActiveModalJob(j)}
+                          style={{
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(255,215,0,0.35)',
+                            color: '#ffffff',
+                            padding: '10px 12px',
+                            borderRadius: '10px',
+                            fontSize: '0.82rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,215,0,0.1)'; e.currentTarget.style.borderColor = '#ffd700'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,215,0,0.35)'; }}
+                        >
+                          View Details <ChevronRight size={14} color="#ffd700" />
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setSelectedRole(j.title);
+                            document.getElementById('applyFormContainer')?.scrollIntoView({ behavior: 'smooth' });
+                          }}
+                          style={{
+                            background: 'linear-gradient(135deg, #ffd700 0%, #eab308 100%)',
+                            border: 'none',
+                            color: '#000000',
+                            padding: '10px 14px',
+                            borderRadius: '10px',
+                            fontSize: '0.84rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            boxShadow: '0 4px 15px rgba(255,215,0,0.25)',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(255,215,0,0.4)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(255,215,0,0.25)'; }}
+                        >
+                          Apply Now <Send size={13} color="#000" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
+
+              {filteredJobs.length === 0 && (
+                <div style={{
+                  gridColumn: '1 / -1',
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  background: 'rgba(255,255,255,0.02)',
+                  borderRadius: '16px',
+                  border: '1px dashed rgba(255,215,0,0.3)'
+                }}>
+                  <Briefcase size={36} color="#ffd700" style={{ margin: '0 auto 12px auto', opacity: 0.8 }} />
+                  <h4 style={{ color: '#fff', fontSize: '1.1rem', marginBottom: '8px' }}>No openings found in this category</h4>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.88rem', marginBottom: '16px' }}>
+                    Check back soon or explore all available job roles across Sarkar Group.
+                  </p>
+                  <button
+                    onClick={() => setSelectedCategory('all')}
+                    style={{
+                      background: 'rgba(255,215,0,0.15)',
+                      border: '1px solid #ffd700',
+                      color: '#ffd700',
+                      padding: '8px 20px',
+                      borderRadius: '9999px',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    View All Openings ({jobs.length})
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom decorative slogan banner matching screenshot */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '16px',
+              marginTop: '44px',
+              paddingTop: '28px',
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              color: '#ffd700',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase'
+            }}>
+              <div style={{ height: '1px', flex: 1, maxWidth: '120px', background: 'linear-gradient(90deg, transparent, rgba(255,215,0,0.4))' }} />
+              <span>LET'S BUILD A BRIGHTER TOMORROW TOGETHER</span>
+              <div style={{ height: '1px', flex: 1, maxWidth: '120px', background: 'linear-gradient(90deg, rgba(255,215,0,0.4), transparent)' }} />
             </div>
           </div>
 
@@ -790,10 +1017,24 @@ export const Careers = () => {
                 ✕
               </button>
 
-              <div style={{ color: '#ffd700', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>
-                {t('positionDetails')}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ color: '#ffd700', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  {t('positionDetails')}
+                </div>
+                <div style={{
+                  padding: '4px 12px',
+                  borderRadius: '9999px',
+                  background: 'rgba(255,215,0,0.12)',
+                  border: '1px solid rgba(255,215,0,0.35)',
+                  color: '#ffd700',
+                  fontSize: '0.78rem',
+                  fontWeight: 600
+                }}>
+                  {getJobCategoryBadge(activeModalJob)}
+                </div>
               </div>
-              <h2 style={{ fontFamily: "'Playfair Display', serif", color: '#ffffff', fontSize: '1.8rem', fontWeight: 700, marginBottom: '16px' }}>
+
+              <h2 style={{ fontFamily: "'Playfair Display', serif", color: '#ffffff', fontSize: '1.8rem', fontWeight: 700, marginBottom: '14px' }}>
                 {activeModalJob.title}
               </h2>
 
@@ -801,13 +1042,16 @@ export const Careers = () => {
                 {activeModalJob.desc}
               </p>
 
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '16px', marginBottom: '24px' }}>
-                <h4 style={{ color: '#ffd700', margin: '0 0 10px 0', fontSize: '0.95rem', fontWeight: 700 }}>{t('keySpecs')}</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.88rem', color: 'rgba(255,255,255,0.8)' }}>
-                  <div>🏢 <strong>{t('deptLabel')}</strong> {activeModalJob.dept || 'Sales & Operations'}</div>
-                  <div>📍 <strong>{t('locLabel')}</strong> {activeModalJob.loc || 'Bengal & Region'}</div>
-                  <div>⏱ <strong>{t('empLabel')}</strong> {activeModalJob.type || t('fullTime')}</div>
-                  <div>📈 <strong>{t('expLabel')}</strong> {activeModalJob.exp || 'Freshers / Exp'}</div>
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '18px', marginBottom: '24px' }}>
+                <h4 style={{ color: '#ffd700', margin: '0 0 12px 0', fontSize: '0.95rem', fontWeight: 700 }}>{t('keySpecs')}</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)' }}>
+                  <div>🏢 <strong>Department:</strong> {activeModalJob.dept || 'Operations'}</div>
+                  <div>📍 <strong>Location:</strong> {activeModalJob.loc || 'Bengal & Region'}</div>
+                  <div>⏱ <strong>Type:</strong> {activeModalJob.type || 'Full-time'}</div>
+                  <div>📈 <strong>Experience:</strong> {activeModalJob.exp || 'Freshers / Exp'}</div>
+                  <div style={{ gridColumn: '1 / -1', color: '#ffd700', fontWeight: 600 }}>
+                    💰 <strong>Salary / CTC:</strong> {activeModalJob.salary || 'Competitive CTC'}
+                  </div>
                 </div>
               </div>
 
