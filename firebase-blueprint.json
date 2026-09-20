@@ -13,6 +13,8 @@
         "exp": { "type": "string" },
         "salary": { "type": "string" },
         "desc": { "type": "string" },
+        "creatorEmail": { "type": "string" },
+        "createdBy": { "type": "string" },
         "createdAt": { "type": "string" },
         "updatedAt": { "type": "string" }
       },
