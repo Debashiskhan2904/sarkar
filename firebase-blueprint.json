@@ -7,16 +7,10 @@
       "properties": {
         "title": { "type": "string" },
         "dept": { "type": "string" },
-        "category": { "type": "string" },
         "loc": { "type": "string" },
         "type": { "type": "string" },
         "exp": { "type": "string" },
-        "salary": { "type": "string" },
-        "desc": { "type": "string" },
-        "creatorEmail": { "type": "string" },
-        "createdBy": { "type": "string" },
-        "createdAt": { "type": "string" },
-        "updatedAt": { "type": "string" }
+        "desc": { "type": "string" }
       },
       "required": ["title", "dept", "loc", "type"]
     },
