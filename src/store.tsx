@@ -115,19 +115,14 @@ export const deduplicateMedia = (items: MediaType[]): MediaType[] => {
 export const deduplicateJobs = (items: JobType[]): JobType[] => {
   if (!Array.isArray(items)) return [];
   const seenIds = new Set<string>();
-  const seenTitles = new Set<string>();
   const result: JobType[] = [];
 
   for (const item of items) {
     if (!item) continue;
     const strId = item.id !== undefined && item.id !== null ? String(item.id).trim() : '';
-    const strTitle = item.title ? item.title.trim().toLowerCase() : '';
 
     if (strId && seenIds.has(strId)) continue;
-    if (strTitle && seenTitles.has(strTitle)) continue;
-
     if (strId) seenIds.add(strId);
-    if (strTitle) seenTitles.add(strTitle);
     result.push(item);
   }
   return result;
@@ -135,36 +130,64 @@ export const deduplicateJobs = (items: JobType[]): JobType[] => {
 
 export const DEFAULT_COMPANY_JOBS: Omit<JobType, 'id'>[] = [
   {
+    title: "Field Sales Executive",
+    dept: "Sales & Distribution",
+    category: "Sales",
+    loc: "Durgapur, West Bengal",
+    type: "Full-time",
+    exp: "1-3 years experience",
+    salary: "₹ 2.5 - 4 LPA (CTC)",
+    desc: "Meet potential clients, promote our products/services and achieve sales targets in the assigned region."
+  },
+  {
+    title: "Digital Marketing Specialist",
+    dept: "Marketing & Growth",
+    category: "Marketing",
+    loc: "Remote / Kolkata",
+    type: "Full-time",
+    exp: "2-4 years experience",
+    salary: "₹ 3 - 5 LPA (CTC)",
+    desc: "Plan and execute digital marketing campaigns, manage social media, create content and drive brand growth."
+  },
+  {
+    title: "Administrative Executive",
+    dept: "Administration & HR",
+    category: "Administration",
+    loc: "Durgapur, West Bengal",
+    type: "Full-time",
+    exp: "1-3 years experience",
+    salary: "₹ 2 - 3.5 LPA (CTC)",
+    desc: "Provide administrative support, coordinate with teams, manage documentation and ensure smooth office operations."
+  },
+  {
     title: "Area Sales Manager (FMCG - Chanachur & Sweets)",
     dept: "Sales & Distribution",
+    category: "Sales",
     loc: "Durgapur, Asansol & Bardhaman",
     type: "Full-time",
     exp: "2 - 5 Years",
+    salary: "₹ 4 - 6.5 LPA (CTC)",
     desc: "Oversee FMCG distribution network for Priti-Ji Chanachur and Munmun Soan Papdi across retail stores, super stockists, and wholesalers. Drive secondary sales and distributor onboarding."
-  },
-  {
-    title: "C&F & Super Stockist Coordinator",
-    dept: "Operations & Logistics",
-    loc: "Paschim Bardhaman HQ",
-    type: "Full-time",
-    exp: "1 - 3 Years",
-    desc: "Coordinate stock dispatch, order processing, and payment reconciliation for state-wide C&F agents and district super stockists. Maintain daily billing logs and transport dispatch coordination."
-  },
-  {
-    title: "Jewellery Scheme Relationship Executive",
-    dept: "Jewellery Division",
-    loc: "Durgapur / Kolkata",
-    type: "Full-time",
-    exp: "1 - 4 Years",
-    desc: "Drive outreach and merchant enrolments for Stylo Jewellery Schemes (M-1 & M2 Blue-Print rotation models). Maintain investor client relationships and periodic exchange schedules."
   },
   {
     title: "Interior Modular Kitchen Site Supervisor",
     dept: "Interior & Infrastructure",
+    category: "Interior",
     loc: "Durgapur & Raniganj",
     type: "Full-time",
     exp: "2+ Years",
+    salary: "₹ 3 - 4.5 LPA (CTC)",
     desc: "Supervise on-site installations for luxury modular kitchens, acrylic finishes, and customized home interior contracts. Coordinate with carpentry teams and verify quality metrics."
+  },
+  {
+    title: "Jewellery Scheme Relationship Executive",
+    dept: "Jewellery Division",
+    category: "Jewellery",
+    loc: "Durgapur / Kolkata",
+    type: "Full-time",
+    exp: "1 - 4 Years",
+    salary: "₹ 3.5 - 5.5 LPA (CTC)",
+    desc: "Drive outreach and merchant enrolments for Stylo Jewellery Schemes (M-1 & M2 Blue-Print rotation models). Maintain investor client relationships and periodic exchange schedules."
   }
 ];
 
@@ -261,16 +284,12 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubJobs = onSnapshot(collection(db, 'jobs'), async (snapshot) => {
       setDbConnected(true);
 
-      // If collection is fresh in Firestore, seed initial company openings only if not explicitly deleted before
-      if (snapshot.empty && !seedingJobs && deletedJobsRef.current.size === 0) {
+      // If collection is completely fresh and empty in Firestore, seed initial company openings
+      if (snapshot.empty && !seedingJobs) {
         seedingJobs = true;
         try {
-          // Check settings/deleted_records to verify if jobs were explicitly deleted by admin
           const settingsSnap = await getDoc(doc(db, 'settings', 'deleted_records'));
-          const isExplicitlyCleared = settingsSnap.exists() && (
-            settingsSnap.data()?.jobsSeeded ||
-            (Array.isArray(settingsSnap.data()?.jobs) && settingsSnap.data().jobs.length > 0)
-          );
+          const isExplicitlyCleared = settingsSnap.exists() && settingsSnap.data()?.jobsExplicitlyCleared;
 
           if (!isExplicitlyCleared) {
             const seeded: JobType[] = [];
@@ -282,7 +301,7 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
               const docRef = await addDoc(collection(db, 'jobs'), sanitized);
               seeded.push({ ...dj, id: docRef.id });
             }
-            setJobs(deduplicateJobs(seeded.filter(j => !isJobDeleted(j, deletedJobsRef.current))));
+            setJobs(seeded);
             await setDoc(doc(db, 'settings', 'deleted_records'), { jobsSeeded: true }, { merge: true });
           } else {
             setJobs([]);
@@ -295,12 +314,16 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      const data = snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as any[];
-      const activeJobs = deduplicateJobs(data.filter(j => !isJobDeleted(j, deletedJobsRef.current)));
-      setJobs(activeJobs);
+      const data = snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as JobType[];
+      // Sort jobs by createdAt descending so newly created/posted openings always appear at top
+      data.sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+      });
+      setJobs(deduplicateJobs(data));
     }, (err) => {
       console.error('jobs listener error:', err.message);
-      setJobs(prev => deduplicateJobs(prev.filter(j => !isJobDeleted(j, deletedJobsRef.current))));
     });
 
     // 4. Real-time Applications from Firestore
@@ -520,10 +543,17 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
 
   const addJob = async (job: any) => {
     const tempId = 'job_' + Date.now();
-    const newJob = { 
-      ...job, 
-      id: tempId,
-      createdAt: job.createdAt || new Date().toISOString() 
+    const newJob: JobType = { 
+      title: (job.title || '').trim(),
+      dept: (job.dept || '').trim() || 'General',
+      category: (job.category || 'Sales').trim(),
+      loc: (job.loc || '').trim() || 'Durgapur, West Bengal',
+      type: job.type || 'Full-time',
+      exp: (job.exp || '').trim() || '1-3 years experience',
+      salary: (job.salary || '').trim() || '₹ 2.5 - 4 LPA (CTC)',
+      desc: (job.desc || '').trim(),
+      createdAt: job.createdAt || new Date().toISOString(),
+      id: tempId
     };
 
     if (job.title) {
@@ -532,17 +562,20 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
       deletedJobsRef.current.delete('preset:' + lowerTitle);
     }
 
-    setJobs(prev => [newJob, ...prev.filter(j => j.title !== job.title)]);
+    // Optimistically update local state
+    setJobs(prev => [newJob, ...prev.filter(j => j.id !== tempId)]);
 
     try {
       const sanitized = sanitizeForFirestore({
-        title: job.title.trim(),
-        dept: job.dept?.trim() || 'General',
-        loc: job.loc?.trim() || 'Durgapur, Paschim Bardhaman',
-        type: job.type || 'Full-time',
-        exp: job.exp?.trim() || '—',
-        desc: job.desc?.trim() || '',
-        createdAt: new Date().toISOString()
+        title: newJob.title,
+        dept: newJob.dept,
+        category: newJob.category,
+        loc: newJob.loc,
+        type: newJob.type,
+        exp: newJob.exp,
+        salary: newJob.salary,
+        desc: newJob.desc,
+        createdAt: newJob.createdAt
       });
       const docRef = await addDoc(collection(db, 'jobs'), sanitized);
       if (docRef?.id) {
@@ -557,7 +590,7 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const updateJob = async (id: string, updatedData: any) => {
-    setJobs(prev => prev.map(j => String(j.id) === String(id) ? { ...j, ...updatedData } : j));
+    setJobs(prev => prev.map(j => String(j.id) === String(id) ? { ...j, ...updatedData, updatedAt: new Date().toISOString() } : j));
     try {
       const sanitized = sanitizeForFirestore({
         ...updatedData,
@@ -574,17 +607,10 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
 
   const deleteJob = async (id: string | number) => {
     const strId = String(id);
-    const jobToDelete = jobs.find(j => String(j.id) === strId);
-    const jobTitle = (jobToDelete?.title || '').trim().toLowerCase();
-
     deletedJobsRef.current.add(strId);
-    if (jobTitle) {
-      deletedJobsRef.current.add('preset:' + jobTitle);
-      deletedJobsRef.current.add('title:' + jobTitle);
-    }
 
     // Immediately remove from React state
-    setJobs(prev => prev.filter(j => String(j.id) !== strId && !isJobDeleted(j, deletedJobsRef.current)));
+    setJobs(prev => prev.filter(j => String(j.id) !== strId));
 
     // 1. Delete direct document by ID if not purely local temp ID
     try {
@@ -593,31 +619,6 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (err: any) {
       console.warn('Job direct deleteDoc error:', err?.message);
-    }
-
-    // 2. Query Firestore by title to delete any corresponding documents (handles seeded items or temp IDs)
-    if (jobToDelete?.title) {
-      try {
-        const q = query(collection(db, 'jobs'), where('title', '==', jobToDelete.title.trim()));
-        const snap = await getDocs(q);
-        for (const d of snap.docs) {
-          deletedJobsRef.current.add(d.id);
-          await deleteDoc(doc(db, 'jobs', d.id));
-        }
-      } catch (err: any) {
-        console.warn('Job title query delete error:', err?.message);
-      }
-    }
-
-    // 3. Persist tombstones to Firestore
-    try {
-      await setDoc(doc(db, 'settings', 'deleted_records'), {
-        jobs: Array.from(deletedJobsRef.current),
-        jobsSeeded: true,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
-    } catch (err: any) {
-      console.warn('Job sync deleted_records note:', err?.message);
     }
   };
   
