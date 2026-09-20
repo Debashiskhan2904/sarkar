@@ -1,0 +1,86 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function: Strictly verifies the single authorized administrator
+    // Explicitly rejects any unauthorized account (such as debashiskhan586@gmail.com)
+    function isUnauthorizedUser() {
+      return request.auth != null &&
+        request.auth.token.email != null &&
+        request.auth.token.email != 'bpkishore2001@gmail.com' &&
+        request.auth.token.email != 'bpkishore2001@googlemail.com';
+    }
+
+    function isAdmin() {
+      return request.auth != null && !isUnauthorizedUser();
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Jobs: Public read, ONLY authorized admin can create, edit, delete
+    match /jobs/{jobId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(jobId);
+    }
+
+    // Media: Migrated exclusively to Supabase. Disallow all new media creation in Firestore; allow legacy cleanup by admin.
+    match /media/{mediaId} {
+      allow read, delete: if isAdmin();
+      allow create, update: if false;
+
+      match /chunks/{chunkId} {
+        allow read, delete: if isAdmin();
+        allow create, update: if false;
+      }
+    }
+
+    // Applications: Public submissions, ONLY authorized admin can view, update, delete
+    match /applications/{appId} {
+      allow read: if isAdmin();
+      allow create: if isValidId(appId) && request.resource.data.name is string;
+      allow update, delete: if isAdmin() && isValidId(appId);
+    }
+
+    // Inquiries: Public submissions, ONLY authorized admin can view, update, delete
+    match /inquiries/{inqId} {
+      allow read: if isAdmin() || inqId == 'live_announcement_state';
+      allow create: if isValidId(inqId) && (request.resource.data.name is string || inqId == 'live_announcement_state');
+      allow update, delete: if isAdmin() && isValidId(inqId);
+    }
+
+    // Announcements: Public read, ONLY authorized admin can manage
+    match /announcements/{annId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(annId);
+    }
+
+    // Settings (announcement & deleted_records): Public read, ONLY authorized admin can write
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(settingId);
+    }
+
+    // Notices Archive: Public read, ONLY authorized admin can manage
+    match /notices/{noticeId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(noticeId);
+    }
+
+    // Audit Logs: ONLY authorized admin can read/manage
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isValidId(logId) && isAdmin();
+      allow update, delete: if isAdmin() && isValidId(logId);
+    }
+  }
+}
+
+
+
