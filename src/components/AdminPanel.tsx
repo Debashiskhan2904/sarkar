@@ -230,9 +230,11 @@ export const AdminPanel = () => {
   const [editingJob, setEditingJob] = useState<any | null>(null);
   const [editJTitle, setEditJTitle] = useState('');
   const [editJDept, setEditJDept] = useState('');
+  const [editJCategory, setEditJCategory] = useState('Sales');
   const [editJLoc, setEditJLoc] = useState('');
   const [editJType, setEditJType] = useState('Full-time');
   const [editJExp, setEditJExp] = useState('');
+  const [editJSalary, setEditJSalary] = useState('');
   const [editJDesc, setEditJDesc] = useState('');
 
   // Edit Media State
@@ -266,9 +268,11 @@ export const AdminPanel = () => {
   // Job Form
   const [jTitle, setJTitle] = useState('');
   const [jDept, setJDept] = useState('');
+  const [jCategory, setJCategory] = useState('Sales');
   const [jLoc, setJLoc] = useState('');
   const [jType, setJType] = useState('Full-time');
   const [jExp, setJExp] = useState('');
+  const [jSalary, setJSalary] = useState('');
   const [jDesc, setJDesc] = useState('');
 
   // Media Form
@@ -568,15 +572,17 @@ export const AdminPanel = () => {
       await addJob({ 
         title: jTitle.trim(), 
         dept: jDept.trim() || 'General', 
-        loc: jLoc.trim() || 'Durgapur, Bardhaman & Asansol', 
+        category: jCategory.trim() || 'Sales',
+        loc: jLoc.trim() || 'Durgapur, West Bengal', 
         type: jType || 'Full-time', 
-        exp: jExp.trim() || '—', 
+        exp: jExp.trim() || '1-3 years experience', 
+        salary: jSalary.trim() || '₹ 2.5 - 4 LPA (CTC)',
         desc: jDesc.trim() 
       });
       if (recordAuditLog) {
-        recordAuditLog(activeAdminEmail, 'Posted Career Opening', `Created new job vacancy: "${jTitle.trim()}" (${jDept.trim() || 'General'}, ${jLoc.trim() || 'Durgapur'}).`, 'jobs');
+        recordAuditLog(activeAdminEmail, 'Posted Career Opening', `Created new job vacancy: "${jTitle.trim()}" (${jCategory.trim() || 'Sales'}, ${jLoc.trim() || 'Durgapur'}).`, 'jobs');
       }
-      setJTitle(''); setJDept(''); setJLoc(''); setJExp(''); setJDesc('');
+      setJTitle(''); setJDept(''); setJLoc(''); setJExp(''); setJDesc(''); setJSalary(''); setJCategory('Sales');
       showToast('Job opening published and saved to database!', 'success');
     } catch (err: any) {
       showToast(err?.message || 'Failed to save job to database', 'error');
@@ -620,25 +626,8 @@ export const AdminPanel = () => {
     }
 
     const lowerTitle = titleToSave.toLowerCase();
-    let detectedSub = mProductSub;
-    let detectedSector = mSector;
-    
-    // Auto-detect subcategory if user kept default and title matches known products
-    if (mProductSub === 'chanachur' || mProductSub === 'all_sub') {
-      if (lowerTitle.includes('frog') || lowerTitle.includes('mosquito') || lowerTitle.includes('coil') || lowerTitle.includes('liquid')) {
-        detectedSub = 'mosquito';
-        detectedSector = 'fmcg';
-      } else if (lowerTitle.includes('soan') || lowerTitle.includes('papdi') || lowerTitle.includes('sweet') || lowerTitle.includes('mithai')) {
-        detectedSub = 'soan_papdi';
-        detectedSector = 'fmcg';
-      } else if (lowerTitle.includes('jewel') || lowerTitle.includes('gold') || lowerTitle.includes('stylo') || lowerTitle.includes('ornament')) {
-        detectedSub = 'jewellery_scheme';
-        detectedSector = 'jewellery';
-      } else if (lowerTitle.includes('interior') || lowerTitle.includes('modular') || lowerTitle.includes('kitchen') || lowerTitle.includes('decor')) {
-        detectedSub = 'modular_kitchen';
-        detectedSector = 'interior';
-      }
-    }
+    const detectedSub = mProductSub;
+    const detectedSector = mSector;
 
     const computedLabel = mProductLabel.trim() || (
       detectedSub === 'mosquito' ? 'Angry Frog Mosquito Killer' :
@@ -780,16 +769,20 @@ export const AdminPanel = () => {
     setEditingJob(job);
     setJTitle(job.title || '');
     setJDept(job.dept || '');
+    setJCategory(job.category || 'Sales');
     setJLoc(job.loc || '');
     setJType(job.type || 'Full-time');
     setJExp(job.exp || '');
+    setJSalary(job.salary || '');
     setJDesc(job.desc || '');
 
     setEditJTitle(job.title || '');
     setEditJDept(job.dept || '');
+    setEditJCategory(job.category || 'Sales');
     setEditJLoc(job.loc || '');
     setEditJType(job.type || 'Full-time');
     setEditJExp(job.exp || '');
+    setEditJSalary(job.salary || '');
     setEditJDesc(job.desc || '');
 
     // Smooth scroll straight to form head part
@@ -812,24 +805,43 @@ export const AdminPanel = () => {
     await updateJob(editingJob.id, {
       title: titleToSave,
       dept: (jDept || editJDept).trim() || 'General',
-      loc: (jLoc || editJLoc).trim() || 'New Delhi',
+      category: (jCategory || editJCategory || 'Sales').trim(),
+      loc: (jLoc || editJLoc).trim() || 'Durgapur, West Bengal',
       type: jType || editJType || 'Full-time',
       exp: (jExp || editJExp).trim() || '—',
+      salary: (jSalary || editJSalary).trim() || '₹ 2.5 - 4 LPA (CTC)',
       desc: (jDesc || editJDesc).trim()
     });
     if (recordAuditLog) {
       recordAuditLog(activeAdminEmail, 'Updated Job Opening', `Modified details for job vacancy "${titleToSave}".`, 'jobs');
     }
     setEditingJob(null);
-    setJTitle(''); setJDept(''); setJLoc(''); setJExp(''); setJDesc(''); setJType('Full-time');
-    setEditJTitle(''); setEditJDept(''); setEditJLoc(''); setEditJExp(''); setEditJDesc('');
+    setJTitle(''); setJDept(''); setJLoc(''); setJExp(''); setJDesc(''); setJSalary(''); setJCategory('Sales'); setJType('Full-time');
+    setEditJTitle(''); setEditJDept(''); setEditJLoc(''); setEditJExp(''); setEditJDesc(''); setEditJSalary(''); setEditJCategory('Sales');
     showToast('Job updated successfully', 'success');
   };
 
   const handleCancelEditJob = () => {
     setEditingJob(null);
-    setJTitle(''); setJDept(''); setJLoc(''); setJExp(''); setJDesc(''); setJType('Full-time');
-    setEditJTitle(''); setEditJDept(''); setEditJLoc(''); setEditJExp(''); setEditJDesc('');
+    setJTitle(''); setJDept(''); setJLoc(''); setJExp(''); setJDesc(''); setJSalary(''); setJCategory('Sales'); setJType('Full-time');
+    setEditJTitle(''); setEditJDept(''); setEditJLoc(''); setEditJExp(''); setEditJDesc(''); setEditJSalary(''); setEditJCategory('Sales');
+  };
+
+  const handleDeleteJob = async (jobId: string | number) => {
+    const target = jobs.find((j: any) => String(j.id) === String(jobId));
+    const title = target?.title || 'Job Opening';
+    try {
+      await deleteJob(jobId);
+      if (recordAuditLog) {
+        recordAuditLog(activeAdminEmail, 'Deleted Job Opening', `Removed vacancy "${title}" from database.`, 'jobs');
+      }
+      if (editingJob && String(editingJob.id) === String(jobId)) {
+        handleCancelEditJob();
+      }
+      showToast(`Job opening "${title}" deleted successfully`, 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to delete job', 'error');
+    }
   };
 
   // Edit Media Handlers
@@ -972,18 +984,6 @@ export const AdminPanel = () => {
       setAnnText('Important Notice: Official office working hours and regional distributor verification updates.');
       setAnnLinkText('Contact Office');
       setAnnLinkUrl('/contact');
-    }
-  };
-
-  const handleDeleteJob = async (id: string) => { 
-    try {
-      await deleteJob(id); 
-      if (recordAuditLog) {
-        recordAuditLog(activeAdminEmail, 'Deleted Career Opening', `Permanently removed job opening ID ${id}.`, 'jobs');
-      }
-      showToast('Job opening permanently removed from database', 'success'); 
-    } catch (err: any) {
-      showToast(`Failed to remove job: ${err?.message || 'Error'}`, 'error');
     }
   };
 
@@ -1824,17 +1824,34 @@ export const AdminPanel = () => {
                         style={{ background: '#080808', color: '#fff', border: editingJob ? '1px solid #ffd700' : '1px solid rgba(255,215,0,0.3)', borderRadius: '8px', padding: '12px 14px', width: '100%', boxSizing: 'border-box' }} 
                       />
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ color: '#ffd700', fontWeight: 700, fontSize: '0.82rem', marginBottom: '8px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>JOB CATEGORY / SECTOR</label>
+                        <select 
+                          value={jCategory} 
+                          onChange={e=>setJCategory(e.target.value)} 
+                          style={{ background: '#080808', color: '#fff', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '8px', padding: '12px 14px', width: '100%', boxSizing: 'border-box' }}
+                        >
+                          <option value="Sales">Sales</option>
+                          <option value="Marketing">Marketing</option>
+                          <option value="Administration">Administration</option>
+                          <option value="Operations">FMCG & Operations</option>
+                          <option value="Interior">Interior & Modular</option>
+                          <option value="Jewellery">Jewellery Division</option>
+                          <option value="Engineering">Engineering / IT</option>
+                          <option value="Executive">Executive & Leadership</option>
+                        </select>
+                      </div>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label style={{ color: '#ffd700', fontWeight: 700, fontSize: '0.82rem', marginBottom: '8px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>DEPARTMENT</label>
-                        <input type="text" placeholder="e.g. FMCG Sales & Distribution" value={jDept} onChange={e=>setJDept(e.target.value)} style={{ background: '#080808', color: '#fff', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '8px', padding: '12px 14px', width: '100%', boxSizing: 'border-box' }} />
+                        <input type="text" placeholder="e.g. Sales & Distribution" value={jDept} onChange={e=>setJDept(e.target.value)} style={{ background: '#080808', color: '#fff', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '8px', padding: '12px 14px', width: '100%', boxSizing: 'border-box' }} />
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label style={{ color: '#ffd700', fontWeight: 700, fontSize: '0.82rem', marginBottom: '8px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>LOCATION</label>
-                        <input type="text" placeholder="e.g. Durgapur, Bardhaman & Asansol" value={jLoc} onChange={e=>setJLoc(e.target.value)} style={{ background: '#080808', color: '#fff', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '8px', padding: '12px 14px', width: '100%', boxSizing: 'border-box' }} />
+                        <input type="text" placeholder="e.g. Durgapur, West Bengal" value={jLoc} onChange={e=>setJLoc(e.target.value)} style={{ background: '#080808', color: '#fff', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '8px', padding: '12px 14px', width: '100%', boxSizing: 'border-box' }} />
                       </div>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '16px' }}>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label style={{ color: '#ffd700', fontWeight: 700, fontSize: '0.82rem', marginBottom: '8px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>EMPLOYMENT TYPE</label>
                         <select value={jType} onChange={e=>setJType(e.target.value)} style={{ background: '#080808', color: '#fff', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '8px', padding: '12px 14px', width: '100%', boxSizing: 'border-box' }}>
@@ -1846,7 +1863,11 @@ export const AdminPanel = () => {
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label style={{ color: '#ffd700', fontWeight: 700, fontSize: '0.82rem', marginBottom: '8px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>EXPERIENCE REQUIRED</label>
-                        <input type="text" placeholder="e.g. 2+ Years in FMCG or Retail" value={jExp} onChange={e=>setJExp(e.target.value)} style={{ background: '#080808', color: '#fff', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '8px', padding: '12px 14px', width: '100%', boxSizing: 'border-box' }} />
+                        <input type="text" placeholder="e.g. 1-3 years experience" value={jExp} onChange={e=>setJExp(e.target.value)} style={{ background: '#080808', color: '#fff', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '8px', padding: '12px 14px', width: '100%', boxSizing: 'border-box' }} />
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ color: '#ffd700', fontWeight: 700, fontSize: '0.82rem', marginBottom: '8px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>SALARY / CTC RANGE</label>
+                        <input type="text" placeholder="e.g. ₹ 2.5 - 4 LPA (CTC)" value={jSalary} onChange={e=>setJSalary(e.target.value)} style={{ background: '#080808', color: '#fff', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '8px', padding: '12px 14px', width: '100%', boxSizing: 'border-box' }} />
                       </div>
                     </div>
                     <div className="form-group" style={{ marginBottom: '20px' }}>
@@ -1906,10 +1927,11 @@ export const AdminPanel = () => {
                       <table className="admin-table" style={{ width: '100%', minWidth: '100%', tableLayout: 'auto' }}>
                         <thead>
                           <tr>
-                            <th style={{ width: '28%' }}>Title</th>
-                            <th style={{ width: '20%' }}>Dept</th>
-                            <th style={{ width: '22%' }}>Location</th>
-                            <th style={{ width: '14%' }}>Type</th>
+                            <th style={{ width: '25%' }}>Title</th>
+                            <th style={{ width: '15%' }}>Category</th>
+                            <th style={{ width: '18%' }}>Dept / Location</th>
+                            <th style={{ width: '16%' }}>Salary / CTC</th>
+                            <th style={{ width: '10%' }}>Type</th>
                             <th style={{ width: '16%', textAlign: 'right' }}>Actions</th>
                           </tr>
                         </thead>
@@ -1930,8 +1952,26 @@ export const AdminPanel = () => {
                                     <strong style={{ color: '#fff', fontSize: '0.95rem', display: 'block' }}>{j.title}</strong>
                                     {j.exp && <span style={{ fontSize: '0.78rem', color: '#999' }}>Exp: {j.exp}</span>}
                                   </td>
-                                  <td style={{ color: '#ccc' }}>{j.dept || '—'}</td>
-                                  <td style={{ color: '#ccc' }}>{j.loc || '—'}</td>
+                                  <td>
+                                    <span style={{
+                                      padding: '3px 8px',
+                                      background: 'rgba(255,215,0,0.12)',
+                                      border: '1px solid rgba(255,215,0,0.3)',
+                                      borderRadius: '6px',
+                                      fontSize: '0.75rem',
+                                      color: '#ffd700',
+                                      fontWeight: 600
+                                    }}>
+                                      {j.category || 'General'}
+                                    </span>
+                                  </td>
+                                  <td style={{ color: '#ccc', fontSize: '0.85rem' }}>
+                                    <div>{j.dept || '—'}</div>
+                                    <div style={{ color: '#888', fontSize: '0.78rem' }}>{j.loc || '—'}</div>
+                                  </td>
+                                  <td style={{ color: '#ffd700', fontSize: '0.85rem', fontWeight: 600 }}>
+                                    {j.salary || 'Competitive'}
+                                  </td>
                                   <td>
                                     <span style={{ 
                                       padding: '4px 10px', 
@@ -2671,26 +2711,65 @@ export const AdminPanel = () => {
                   <div className="form-row">
                     <div className="form-group">
                       <label>Enterprise Sector</label>
-                      <select value={editMSector} onChange={e => setEditMSector(e.target.value)}>
+                      <select 
+                        value={editMSector} 
+                        onChange={e => {
+                          const newSec = e.target.value;
+                          setEditMSector(newSec);
+                          if (newSec === 'fmcg') setEditMProductSub('chanachur');
+                          else if (newSec === 'jewellery') setEditMProductSub('jewellery_scheme');
+                          else if (newSec === 'interior') setEditMProductSub('modular_kitchen');
+                          else if (newSec === 'company') setEditMProductSub('corporate_branding');
+                          else if (newSec === 'credentials') setEditMProductSub('all_sub');
+                        }}
+                      >
                         <option value="fmcg">FMCG & Packaged Foods</option>
                         <option value="jewellery">Fine Jewellery & Gold Scheme</option>
                         <option value="interior">Luxury Living & Modular Interior</option>
-                        <option value="general">Corporate Headquarters / General</option>
+                        <option value="company">Corporate / Brand Vision</option>
+                        <option value="credentials">Credentials & Certificates</option>
                       </select>
                     </div>
                     <div className="form-group">
                       <label>Product Sub-Category</label>
                       <select value={editMProductSub} onChange={e => setEditMProductSub(e.target.value)}>
-                        <option value="chanachur">Priti-Ji Chanachur</option>
-                        <option value="mosquito">Mosquito Repellent Coils</option>
-                        <option value="soan_papdi">Soan Papdi & Sweets</option>
-                        <option value="hawker_scheme">Hawker & Dealership Scheme</option>
-                        <option value="jewellery_scheme">Jewellery Monthly Savings Scheme</option>
-                        <option value="jewellery_equipment">Precision Jewellery Tools</option>
-                        <option value="modular_kitchen">Modular Kitchen</option>
-                        <option value="luxury_living">Living Room & Bedrooms</option>
-                        <option value="corporate_branding">Corporate Branding</option>
-                        <option value="all_sub">All / General Product</option>
+                        {editMSector === 'fmcg' && (
+                          <>
+                            <option value="chanachur">🌶️ Priti-Ji Chanachur</option>
+                            <option value="mosquito">🦟 Mosquito Repellents (Angry Frog / Maxwell / Encounter)</option>
+                            <option value="soan_papdi">🍬 Soan Papdi & Sweets</option>
+                            <option value="hawker_scheme">📜 Hawker & C&F Schemes</option>
+                            <option value="all_sub">📦 Other FMCG Range</option>
+                          </>
+                        )}
+                        {editMSector === 'jewellery' && (
+                          <>
+                            <option value="jewellery_scheme">🏆 Jewellery Stylo & Monopoly Schemes</option>
+                            <option value="jewellery_equipment">⚙️ Gold Processing & Recycling Equipment</option>
+                            <option value="all_sub">💎 General Jewellery Outlet</option>
+                          </>
+                        )}
+                        {editMSector === 'interior' && (
+                          <>
+                            <option value="modular_kitchen">🍳 Modular Kitchens</option>
+                            <option value="luxury_living">🛋️ Luxury Living Units</option>
+                            <option value="corporate_branding">🏢 Commercial & Mall Setup</option>
+                            <option value="all_sub">🏠 Other Interior Work</option>
+                          </>
+                        )}
+                        {editMSector === 'company' && (
+                          <>
+                            <option value="corporate_branding">🎬 Corporate Overview / Headquarters</option>
+                            <option value="all_sub">🏢 Company Vision</option>
+                          </>
+                        )}
+                        {editMSector === 'credentials' && (
+                          <>
+                            <option value="hawker_scheme">📄 Official Distributorship Certificate</option>
+                            <option value="jewellery_scheme">📜 Monopoly Contract / Agreement</option>
+                            <option value="all_sub">🏛️ Board Governance Charter</option>
+                          </>
+                        )}
                       </select>
                     </div>
                   </div>
