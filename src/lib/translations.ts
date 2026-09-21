@@ -615,7 +615,7 @@ export const translations: Record<Language, Record<string, string>> = {
     faqCtaWhatsappBtn: "💬 WHATSAPP NOW",
 
     // FAQ Items
-    faqQ1Question: "1. What is the primary role of Sarkar Enterprise?",
+    faqQ1Question: "1. What is the primary role of The Sarkar Enterprise?",
     faqQ1Answer: "We are an end-to-end product promoter and business establishment partner. We take complete responsibility to establish entrepreneurial and manufacturing brands and scale them to crore-to-crore turnovers with scientific precision and authentic profitable accountability.",
     faqQ1Hl1: "end-to-end product promoter",
     faqQ1Hl2: "crore-to-crore turnovers",
@@ -1430,7 +1430,7 @@ export const translations: Record<Language, Record<string, string>> = {
     faqCtaWhatsappBtn: "💬 व्हाट्सएप करें",
 
     // FAQ Items
-    faqQ1Question: "1. सरकार एंटरप्राइज की प्राथमिक भूमिका क्या है?",
+    faqQ1Question: "1. द सरकार एंटरप्राइज (The Sarkar Enterprise) की प्राथमिक भूमिका क्या है?",
     faqQ1Answer: "हम एक एंड-टू-एंड उत्पाद प्रचारक और व्यवसाय स्थापना भागीदार हैं। हम उद्यमशीलता और विनिर्माण ब्रांडों को स्थापित करने और वैज्ञानिक सटीकता और प्रामाणिक लाभदायक जवाबदेही के साथ उन्हें करोड़-दर-करोड़ टर्नओवर तक ले जाने की पूरी जिम्मेदारी लेते हैं।",
     faqQ1Hl1: "एंड-टू-एंड उत्पाद प्रचारक",
     faqQ1Hl2: "करोड़-दर-करोड़ टर्नओवर",
@@ -2245,7 +2245,7 @@ export const translations: Record<Language, Record<string, string>> = {
     faqCtaWhatsappBtn: "💬 হোয়াটসঅ্যাপ করুন",
 
     // FAQ Items
-    faqQ1Question: "১. সরকার এন্টারপ্রাইজের প্রাথমিক ভূমিকা কী?",
+    faqQ1Question: "১. দ্য সরকার এন্টারপ্রাইজ (The Sarkar Enterprise)-এর প্রাথমিক ভূমিকা কী?",
     faqQ1Answer: "আমরা একটি এন্ড-টু-এন্ড প্রোডাক্ট প্রমোটার এবং বিজনেস এস্টাবলিশমেন্ট পার্টনার। আমরা উদ্যোক্তা ও উৎপাদনকারী ব্র্যান্ড প্রতিষ্ঠা করা এবং বৈজ্ঞানিক নিখুঁততা ও লাভজনক জবাবদিহিতার সাথে কোটি কোটি টাকার টার্নওভারে উন্নীত করার সম্পূর্ণ দায়িত্ব গ্রহণ করি।",
     faqQ1Hl1: "এন্ড-টু-এন্ড প্রোডাক্ট প্রমোটার",
     faqQ1Hl2: "কোটি কোটি টাকার টার্নওভার",
