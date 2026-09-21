@@ -594,7 +594,7 @@ export const ProductsHub = () => {
             <p className="ps-sector-scale">{t('interiorScale')}</p>
           </div>
 
-          {/* Dedicated Interior & Saburi Plywood Interactive Showcase */}
+          {/* Dedicated Interior & IFRPPI PLY WOOD Interactive Showcase */}
           <InteriorShowcase 
             onOpenEnquiry={(title, cat) => handleOpenBuyingEnquiry(title, cat)}
             onWhatsAppOrder={(title) => handleSendWhatsAppOrder(title)}
