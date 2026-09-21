@@ -409,7 +409,7 @@ export const InteriorShowcase: React.FC<InteriorShowcaseProps> = ({
           {/* Action Buttons Row */}
           <div className="pt-4 border-t border-white/10 flex flex-wrap items-center gap-3">
             <button
-              onClick={() => onOpenEnquiry('Interiors & Plywood Commercial Partnership (Saburi Plywood & Ganapati Marketing)', 'interior')}
+              onClick={() => onOpenEnquiry('Interiors & Plywood Commercial Partnership (IFRPPI PLY WOOD & Ganapati Marketing)', 'interior')}
               className="flex-1 min-w-[200px] bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-black font-bold py-3 px-5 rounded-xl text-sm transition-all shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 flex items-center justify-center gap-2 cursor-pointer"
             >
               <Mail className="w-4 h-4 text-black" />
