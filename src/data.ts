@@ -126,16 +126,16 @@ export const JEWELLERY_PRODUCTS = JEWELLERY_GALLERY;
 export const INTERIOR_GALLERY = [
   {
     id: 'interior-img-1',
-    title: "Saburi Plywood Pvt. Ltd. (Corporate Infrastructure & Daily Target Schedule)",
+    title: "IFRPPI PLY WOOD (Corporate Infrastructure & Daily Target Schedule)",
     desc: "Chinar Park, Kolkata - 59: Strong competitive administrative marketing infrastructure, 7 AM to 7 PM daily business target tracking, 7-day internal advertising cycles, and high-turnover timber solutions.",
     url: "https://i.pinimg.com/736x/f6/ba/6f/f6ba6fa66f50c79a11a5dd66a253be99.jpg",
     remoteUrl: "https://i.pinimg.com/736x/f6/ba/6f/f6ba6fa66f50c79a11a5dd66a253be99.jpg",
     type: 'photo',
     sector: 'interior',
     productSub: 'plywood_corporate',
-    schemeCode: 'Saburi Plywood',
+    schemeCode: 'IFRPPI PLY WOOD',
     badge: 'Corporate Infrastructure',
-    tags: ['interior', 'saburi plywood', 'chinar park', 'kolkata', 'timber', 'daily target', 'corporate']
+    tags: ['interior', 'ifrppi ply wood', 'chinar park', 'kolkata', 'timber', 'daily target', 'corporate']
   },
   {
     id: 'interior-img-2',
