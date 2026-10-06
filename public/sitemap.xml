@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <!-- 1. Homepage -->
+  <url>
+    <loc>https://www.businesspromoter2001.com/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.businesspromoter2001.com/" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://www.businesspromoter2001.com/" />
+    <xhtml:link rel="alternate" hreflang="bn" href="https://www.businesspromoter2001.com/" />
+    <image:image>
+      <image:loc>https://i.pinimg.com/736x/d9/4f/27/d94f27adb01975c919f11aa8a998eb87.jpg</image:loc>
+      <image:title>The Sarkar Enterprise Official Corporate Brand</image:title>
+      <image:caption>Premier multi-sector enterprise in West Bengal specializing in FMCG distributorship, jewellery monopoly franchise, and turnkey interiors.</image:caption>
+    </image:image>
+    <lastmod>2026-10-06</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.00</priority>
+  </url>
+
+  <!-- 2. About Us -->
+  <url>
+    <loc>https://www.businesspromoter2001.com/about</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.businesspromoter2001.com/about" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://www.businesspromoter2001.com/about" />
+    <xhtml:link rel="alternate" hreflang="bn" href="https://www.businesspromoter2001.com/about" />
+    <lastmod>2026-10-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- 3. Corporate Credentials & Authorized Brands -->
+  <url>
+    <loc>https://www.businesspromoter2001.com/credentials</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.businesspromoter2001.com/credentials" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://www.businesspromoter2001.com/credentials" />
+    <xhtml:link rel="alternate" hreflang="bn" href="https://www.businesspromoter2001.com/credentials" />
+    <lastmod>2026-10-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+
+  <!-- 4. Products & Multi-Sector Hub -->
+  <url>
+    <loc>https://www.businesspromoter2001.com/products</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.businesspromoter2001.com/products" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://www.businesspromoter2001.com/products" />
+    <xhtml:link rel="alternate" hreflang="bn" href="https://www.businesspromoter2001.com/products" />
+    <lastmod>2026-10-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+
+  <!-- 5. Sector: FMCG & Packaged Foods -->
+  <url>
+    <loc>https://www.businesspromoter2001.com/products/fmcg</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.businesspromoter2001.com/products/fmcg" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://www.businesspromoter2001.com/products/fmcg" />
+    <xhtml:link rel="alternate" hreflang="bn" href="https://www.businesspromoter2001.com/products/fmcg" />
+    <lastmod>2026-10-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- 6. Sector: 22K Gold Jewellery Monopoly Scheme -->
+  <url>
+    <loc>https://www.businesspromoter2001.com/products/jewellery</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.businesspromoter2001.com/products/jewellery" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://www.businesspromoter2001.com/products/jewellery" />
+    <xhtml:link rel="alternate" hreflang="bn" href="https://www.businesspromoter2001.com/products/jewellery" />
+    <lastmod>2026-10-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- 7. Sector: Turnkey Modular Interiors & Infrastructure -->
+  <url>
+    <loc>https://www.businesspromoter2001.com/products/interior</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.businesspromoter2001.com/products/interior" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://www.businesspromoter2001.com/products/interior" />
+    <xhtml:link rel="alternate" hreflang="bn" href="https://www.businesspromoter2001.com/products/interior" />
+    <lastmod>2026-10-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- 8. Careers & Distributorship Network -->
+  <url>
+    <loc>https://www.businesspromoter2001.com/careers</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.businesspromoter2001.com/careers" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://www.businesspromoter2001.com/careers" />
+    <xhtml:link rel="alternate" hreflang="bn" href="https://www.businesspromoter2001.com/careers" />
+    <lastmod>2026-10-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- 9. Professional Training Program & Field Kits -->
+  <url>
+    <loc>https://www.businesspromoter2001.com/training</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.businesspromoter2001.com/training" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://www.businesspromoter2001.com/training" />
+    <xhtml:link rel="alternate" hreflang="bn" href="https://www.businesspromoter2001.com/training" />
+    <lastmod>2026-10-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- 10. Media Gallery & Digital Campaigns -->
+  <url>
+    <loc>https://www.businesspromoter2001.com/media</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.businesspromoter2001.com/media" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://www.businesspromoter2001.com/media" />
+    <xhtml:link rel="alternate" hreflang="bn" href="https://www.businesspromoter2001.com/media" />
+    <lastmod>2026-10-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.80</priority>
+  </url>
+
+  <!-- 11. FAQ Knowledgebase & Support -->
+  <url>
+    <loc>https://www.businesspromoter2001.com/faq</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.businesspromoter2001.com/faq" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://www.businesspromoter2001.com/faq" />
+    <xhtml:link rel="alternate" hreflang="bn" href="https://www.businesspromoter2001.com/faq" />
+    <lastmod>2026-10-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.80</priority>
+  </url>
+
+  <!-- 12. Contact Us & Head Office Desk -->
+  <url>
+    <loc>https://www.businesspromoter2001.com/contact</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.businesspromoter2001.com/contact" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://www.businesspromoter2001.com/contact" />
+    <xhtml:link rel="alternate" hreflang="bn" href="https://www.businesspromoter2001.com/contact" />
+    <lastmod>2026-10-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- 13. Corporate Governance & Legal Agreements -->
+  <url>
+    <loc>https://www.businesspromoter2001.com/legal</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.businesspromoter2001.com/legal" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://www.businesspromoter2001.com/legal" />
+    <xhtml:link rel="alternate" hreflang="bn" href="https://www.businesspromoter2001.com/legal" />
+    <lastmod>2026-10-06</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.60</priority>
+  </url>
+
+  <!-- 14. Strategic Vision & 2030 Roadmap -->
+  <url>
+    <loc>https://www.businesspromoter2001.com/conclusion</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.businesspromoter2001.com/conclusion" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://www.businesspromoter2001.com/conclusion" />
+    <xhtml:link rel="alternate" hreflang="bn" href="https://www.businesspromoter2001.com/conclusion" />
+    <lastmod>2026-10-06</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.70</priority>
+  </url>
+
+</urlset>

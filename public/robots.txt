@@ -1,0 +1,61 @@
+# ==============================================================================
+# Robots.txt for The Sarkar Enterprise
+# Official Domain: https://www.businesspromoter2001.com
+# Multi-Sector Enterprise: FMCG, 22K Jewellery, Luxury Interiors, Corporate Trade
+# ==============================================================================
+
+User-agent: *
+Allow: /
+Allow: /images/
+Allow: /favicon*
+Allow: /site.webmanifest
+Disallow: /admin
+Disallow: /private/
+Disallow: /api/
+Disallow: /*?*preview=true
+
+# Major Search Engine Crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /images/
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: YandexBot
+Allow: /
+
+# Social Media Link Preview Bots
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: Slackbot
+Allow: /
+
+User-agent: TelegramBot
+Allow: /
+
+# Canonical Host & XML Sitemap Location
+Host: https://www.businesspromoter2001.com
+Sitemap: https://www.businesspromoter2001.com/sitemap.xml
