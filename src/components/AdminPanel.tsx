@@ -1806,10 +1806,6 @@ export const AdminPanel = () => {
                         </select>
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label style={{ color: '#ffd700', fontWeight: 700, fontSize: '0.82rem', marginBottom: '8px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>DEPARTMENT</label>
-                        <input type="text" placeholder="e.g. Sales & Distribution" value={jDept} onChange={e=>setJDept(e.target.value)} style={{ background: '#080808', color: '#fff', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '8px', padding: '12px 14px', width: '100%', boxSizing: 'border-box' }} />
-                      </div>
-                      <div className="form-group" style={{ margin: 0 }}>
                         <label style={{ color: '#ffd700', fontWeight: 700, fontSize: '0.82rem', marginBottom: '8px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>LOCATION</label>
                         <input type="text" placeholder="e.g. Durgapur, West Bengal" value={jLoc} onChange={e=>setJLoc(e.target.value)} style={{ background: '#080808', color: '#fff', border: '1px solid rgba(255,215,0,0.3)', borderRadius: '8px', padding: '12px 14px', width: '100%', boxSizing: 'border-box' }} />
                       </div>
@@ -2374,14 +2370,12 @@ export const AdminPanel = () => {
                               <option value="mosquito">🦟 Mosquito Repellents (Angry Frog / Maxwell / Encounter)</option>
                               <option value="soan_papdi">🍬 Soan Papdi & Sweets</option>
                               <option value="hawker_scheme">📜 Hawker & C&F Schemes</option>
-                              <option value="all_sub">📦 Other FMCG Range</option>
                             </>
                           )}
                           {mSector === 'jewellery' && (
                             <>
                               <option value="jewellery_scheme">🏆 Jewellery Stylo & Monopoly Schemes</option>
                               <option value="jewellery_equipment">⚙️ Gold Processing & Recycling Equipment</option>
-                              <option value="all_sub">💎 General Jewellery Outlet</option>
                             </>
                           )}
                           {mSector === 'interior' && (
@@ -2389,7 +2383,6 @@ export const AdminPanel = () => {
                               <option value="modular_kitchen">🍳 Modular Kitchens</option>
                               <option value="luxury_living">🛋️ Luxury Living Units</option>
                               <option value="corporate_branding">🏢 Commercial & Mall Setup</option>
-                              <option value="all_sub">🏠 Other Interior Work</option>
                             </>
                           )}
                           {mSector === 'company' && (
@@ -2564,30 +2557,10 @@ export const AdminPanel = () => {
 
                     return (
                       <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '24px 0 16px 0', flexWrap: 'wrap', gap: '10px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <h4 style={{ margin: 0, color: '#ffd700', fontSize: '1.05rem', fontWeight: 700 }}>
-                              Active {tabTitle} ({currentTabMedia.length})
-                            </h4>
-                            <span style={{ fontSize: '0.72rem', background: 'rgba(34,197,94,0.15)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
-                              ⚡ Stored Exclusively on Supabase
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (!window.confirm('Wipe any remaining legacy media documents from Firebase Firestore? All media is already fully migrated to Supabase.')) return;
-                              const res = await purgeFirestoreMedia();
-                              if (res.success) {
-                                showToast(`Firestore media cleaned: ${res.count} leftover documents wiped.`, 'success');
-                              } else {
-                                showToast(`Purge notice: ${res.error || 'Cleaned'}`, 'info');
-                              }
-                            }}
-                            style={{ background: 'rgba(239,68,68,0.1)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', padding: '4px 10px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}
-                          >
-                            🧹 Purge Residual Firestore Docs
-                          </button>
+                        <div style={{ margin: '24px 0 16px 0' }}>
+                          <h4 style={{ margin: 0, color: '#ffd700', fontSize: '1.05rem', fontWeight: 700 }}>
+                            Active {tabTitle} ({currentTabMedia.length})
+                          </h4>
                         </div>
 
                         <div className="admin-table-container">
@@ -2736,14 +2709,12 @@ export const AdminPanel = () => {
                             <option value="mosquito">🦟 Mosquito Repellents (Angry Frog / Maxwell / Encounter)</option>
                             <option value="soan_papdi">🍬 Soan Papdi & Sweets</option>
                             <option value="hawker_scheme">📜 Hawker & C&F Schemes</option>
-                            <option value="all_sub">📦 Other FMCG Range</option>
                           </>
                         )}
                         {editMSector === 'jewellery' && (
                           <>
                             <option value="jewellery_scheme">🏆 Jewellery Stylo & Monopoly Schemes</option>
                             <option value="jewellery_equipment">⚙️ Gold Processing & Recycling Equipment</option>
-                            <option value="all_sub">💎 General Jewellery Outlet</option>
                           </>
                         )}
                         {editMSector === 'interior' && (
@@ -2751,7 +2722,6 @@ export const AdminPanel = () => {
                             <option value="modular_kitchen">🍳 Modular Kitchens</option>
                             <option value="luxury_living">🛋️ Luxury Living Units</option>
                             <option value="corporate_branding">🏢 Commercial & Mall Setup</option>
-                            <option value="all_sub">🏠 Other Interior Work</option>
                           </>
                         )}
                         {editMSector === 'company' && (
