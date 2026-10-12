@@ -95,13 +95,37 @@ export const deduplicateMedia = (items: MediaType[]): MediaType[] => {
   return result;
 };
 
+export const REMOVED_JOB_IDS = new Set<string>([
+  "job_1791829653075_vgqjx",
+  "job_1791829757420_ieq2d",
+  "job_1791829884618_7q6yu"
+]);
+
+export const isRemovedJob = (j: any): boolean => {
+  if (!j) return true;
+  const strId = String(j.id || '').trim();
+  if (REMOVED_JOB_IDS.has(strId)) return true;
+  const title = (j.title || '').trim().toLowerCase();
+  if (
+    title === 'field sales executive (angry frog product)' ||
+    title === 'field marketing (angry frog mosquito repellent products)' ||
+    title === 'marketing executive (fmcg & distributor sales)' ||
+    title.includes('angry frog product') ||
+    title.includes('angry frog mosquito repellent products') ||
+    title.includes('fmcg & distributor sales')
+  ) {
+    return true;
+  }
+  return false;
+};
+
 export const deduplicateJobs = (items: JobType[]): JobType[] => {
   if (!Array.isArray(items)) return [];
   const seenIds = new Set<string>();
   const result: JobType[] = [];
 
   for (const item of items) {
-    if (!item) continue;
+    if (!item || isRemovedJob(item)) continue;
     const strId = item.id !== undefined && item.id !== null ? String(item.id).trim() : '';
     if (strId && seenIds.has(strId)) continue;
     if (strId) seenIds.add(strId);
@@ -110,53 +134,7 @@ export const deduplicateJobs = (items: JobType[]): JobType[] => {
   return result;
 };
 
-export const DEFAULT_COMPANY_JOBS: JobType[] = [
-  {
-    id: "job_1791829653075_vgqjx",
-    title: "Field Sales Executive (Angry Frog Product)",
-    dept: "General",
-    category: "Sales",
-    loc: "As per company-assigned marketing area",
-    type: "Full-time",
-    exp: "Fresher or experienced candidates can apply. Sales and marketing experience preferred",
-    salary: "Performance-based income opportunity advertised as up to ₹18,000 per month. Actual earnings depend on the company's payment terms, sales performance, and applicable conditions.",
-    desc: `THE SARKAR ENTERPRISE is looking for motivated and hardworking individuals to promote and market Angry Frog mosquito-repellent products.\n\nKey Responsibilities:\n\nPromote and demonstrate Angry Frog products to potential customers.\nVisit assigned areas and follow the company's marketing routes.\nGenerate leads and develop new customer relationships.\nExplain product features, benefits, and pricing to customers.\nSupport product distribution and sales activities.\nMaintain customer relationships and provide regular sales updates.\nAchieve assigned sales and marketing targets.\nFollow company policies and product-handling guidelines.\n\nCandidate Requirements:\n\nGood communication and interpersonal skills.\nWillingness to travel within assigned marketing areas.\nSelf-motivated, responsible, and target-oriented.\nFreshers are welcome to apply.\n\nCompany: THE SARKAR ENTERPRISE\nContact: 8670783810`,
-    requirements: [],
-    responsibilities: [],
-    createdAt: "2026-10-12T18:27:33.075Z",
-    updatedAt: "2026-10-12T18:27:33.075Z"
-  },
-  {
-    id: "job_1791829757420_ieq2d",
-    title: "Field Marketing (Angry Frog Mosquito Repellent Products)",
-    dept: "General",
-    category: "Marketing",
-    loc: "Durgapur, West Bengal (Bhiringi More and assigned marketing areas)",
-    type: "Full-time",
-    exp: "Fresher and experienced candidates can apply. Candidates aged 20–30 years are preferred, as stated in the recruitment poster.",
-    salary: "₹12,000–₹18,000 per month (advertised income; actual earnings depend on the company's compensation structure and applicable conditions).",
-    desc: `DESCRIPTION & KEY RESPONSIBILITIES\n\nTHE SARKAR ENTERPRISE is recruiting male and female field sales and marketing executives to promote and market Angry Frog mosquito-repellent products.\n\nKey Responsibilities:\n\nPromote Angry Frog products in assigned local areas.\nConduct door-to-door marketing and product demonstrations.\nVisit potential customers and generate sales leads.\nExplain product features, benefits, and usage to customers.\nUse a bicycle and Bluetooth sound box for field marketing activities, where required.\nBuild customer relationships and support product distribution.\nFollow assigned marketing routes and company guidelines.\nReport daily marketing activities and sales progress.\n\nRequired Documents & Equipment:\n\nAadhaar Card\nVoter ID Card\nResidential Proof\nBicycle in good working condition\nBluetooth sound box in good working condition\nAndroid mobile phone\n\nCompany Details:\n\nMarketing Company: THE SARKAR ENTERPRISE\nManufacturer: Hirak Industries, Rajasthan\nAddress: Sarkar House, Bhirangi More, Durgapur-3, West Bengal\nContact Number: 8670783810`,
-    requirements: [],
-    responsibilities: [],
-    createdAt: "2026-10-12T18:29:17.421Z",
-    updatedAt: "2026-10-12T18:29:17.421Z"
-  },
-  {
-    id: "job_1791829884618_7q6yu",
-    title: "Marketing Executive (FMCG & Distributor Sales)",
-    dept: "General",
-    category: "Marketing",
-    loc: "West Bengal: Anda, Ukhra, Raniganj, Rani Sayer, Dohmani, Pandabeswar, Kajora, Bankura, Purulia, Asansol, Barakar, Chittaranjan, Bardhaman, and Kolkata. Candidates will be assigned to one of the designated marketing areas.",
-    type: "Full-time",
-    exp: "Minimum 2 years of marketing experience. FMCG or food-sector experience in distributor-to-dealer sales and product movement preferred. Graduate in any stream preferred. Proficiency in mobile software and sales reporting. Experience in dealer visits, order collection, payment collection, and distributor management. Candidates must be willing to attend online interviews, a physical interview in Durgapur, and practical field training.",
-    salary: "Advertised monthly package: ₹35,000. Fixed salary: ₹15,000. Incentive: ₹8,000. Travel allowance: ₹6,000. Bonus: ₹6,000. Advertised senior promotion salary: ₹60,000 per month after 12 months, subject to target turnover fulfilment and promotion. Additional TSE reward: ₹12,000, subject to six months of job continuation and target quota fulfilment. All salary components, incentives, allowances, and performance conditions should be verified with the employer.",
-    desc: `THE SARKAR ENTERPRISE, a product and brand promotion company established in 2022, is seeking five Marketing Executives for FMCG distribution and field sales operations. The company promotes products including ALKEM Laboratories products, ENCOUNTER mosquito-repellent sticks, MUMMUN Soan Papdi, and Angry Frog mosquito-repellent products.\n\nKey Responsibilities:\n\nSet up sales routes and monitor daily product deliveries to active dealers.\nMaintain daily records of approximately 30 dealer visits, including first-half and second-half reporting.\nMaintain regular communication with senior management and the Business Development Manager.\nAppoint and develop C&F agents and distributors.\nCollect distributor NOCs confirming dealer credit-limit clearance before payment disbursement, as required by company policy.\nVisit approximately 30 dealers daily between 9:00 a.m. and 9:00 p.m., with order and collection targets.\nAchieve assigned monthly sales and collection targets.\nMaintain accurate dealer records, order details, payment collections, and field reports.\nParticipate in weekly online training and practical field training.\n\nPerformance Targets:\n\nMandatory monthly collection quota: ₹16 lakh.\nConsideration collection quota: ₹6 lakh.\nPromotion to Senior Marketing Executive / ASM may be considered after 12 months, subject to target turnover fulfilment.\n\nTraining & Support:\n\nOnline training sessions every Sunday.\nMarketing and competitive-sales guidance.\nPractical field training and distributor appointment support.\n\nCompany Details:\n\nMarketing Company: THE SARKAR ENTERPRISE, Purba Bardhaman, West Bengal.\nProducts: MUMMUN Soan Papdi and Angry Frog mosquito-repellent products.\nContact Person: Kishore Sarkar, Business Development Manager.\nContact Number: 86-707-838-10 (as printed in the advertisement).\nEmail: kishore8670@gmail.com.\nAdvertisement Period: 1 January 2027 – 31 January 2027.`,
-    requirements: [],
-    responsibilities: [],
-    createdAt: "2026-10-12T18:31:24.619Z",
-    updatedAt: "2026-10-12T18:31:24.619Z"
-  }
-];
+export const DEFAULT_COMPANY_JOBS: JobType[] = [];
 
 export const sanitizeForFirestore = (obj: any): any => {
   if (obj === null || obj === undefined) return null;
@@ -188,10 +166,10 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
   const deletedMediaRef = useRef<Set<string>>(new Set());
   const deletedAppsRef = useRef<Set<string>>(new Set());
   const deletedInqsRef = useRef<Set<string>>(new Set());
-  const deletedJobsRef = useRef<Set<string>>(new Set());
+  const deletedJobsRef = useRef<Set<string>>(new Set(Array.from(REMOVED_JOB_IDS)));
   const mediaClearedRef = useRef<boolean>(false);
 
-  const [jobs, setJobs] = useState<JobType[]>(DEFAULT_COMPANY_JOBS);
+  const [jobs, setJobs] = useState<JobType[]>([]);
   const [applications, setApplications] = useState<AppType[]>([]);
   const [mediaItems, setMediaItems] = useState<MediaType[]>([]);
   const [inquiries, setInquiries] = useState<InquiryType[]>([]);
@@ -222,6 +200,28 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
     // 1. Purge all data from localStorage and local storage caches so none remains locally
     purgeAllLocalStorage();
 
+    // 1b. Proactively purge the removed jobs from Firestore and sync tombstones
+    const purgeRemovedDefaultJobs = async () => {
+      try {
+        await ensureFirebaseAuth();
+        for (const remId of REMOVED_JOB_IDS) {
+          await deleteDoc(doc(db, 'jobs', remId)).catch(() => {});
+        }
+        const delDocRef = doc(db, 'settings', 'deleted_records');
+        const snap = await getDoc(delDocRef);
+        const currentDel = snap.exists() ? snap.data()?.jobs || [] : [];
+        await setDoc(delDocRef, {
+          jobs: Array.from(new Set([...currentDel, ...Array.from(REMOVED_JOB_IDS)]))
+        }, { merge: true }).catch(() => {});
+      } catch {}
+      try {
+        for (const remId of REMOVED_JOB_IDS) {
+          await removeJobFromSupabase(remId, []).catch(() => {});
+        }
+      } catch {}
+    };
+    purgeRemovedDefaultJobs();
+
     // 2. Sync tombstone / deleted records across all devices & sessions from Firestore
     const unsubDeleted = onSnapshot(doc(db, 'settings', 'deleted_records'), (snap) => {
       setDbConnected(true);
@@ -240,8 +240,8 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
           setInquiries(prev => prev.filter(i => !deletedInqsRef.current.has(String(i.id))));
         }
         if (Array.isArray(data.jobs)) {
-          deletedJobsRef.current = new Set(data.jobs.map(String));
-          setJobs(prev => prev.filter(j => !deletedJobsRef.current.has(String(j.id))));
+          deletedJobsRef.current = new Set([...data.jobs.map(String), ...Array.from(REMOVED_JOB_IDS)]);
+          setJobs(prev => prev.filter(j => !deletedJobsRef.current.has(String(j.id)) && !isRemovedJob(j)));
         }
       }
     }, (err) => {
@@ -254,8 +254,10 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
       if (!snapshot.empty) {
         const firestoreJobs = snapshot.docs
           .map(d => ({ ...d.data(), id: d.id }))
-          .filter(j => !deletedJobsRef.current.has(String(j.id))) as JobType[];
+          .filter(j => !deletedJobsRef.current.has(String(j.id)) && !isRemovedJob(j)) as JobType[];
         setJobs(prev => deduplicateJobs([...firestoreJobs, ...prev]));
+      } else {
+        setJobs(prev => prev.filter(j => !isRemovedJob(j)));
       }
     }, (err) => {
       console.warn('Firestore jobs sync note:', err?.message);
@@ -265,7 +267,7 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         const supabaseJobs = await fetchJobsFromSupabase();
         if (Array.isArray(supabaseJobs) && supabaseJobs.length > 0) {
-          const validJobs = supabaseJobs.filter(j => !deletedJobsRef.current.has(String(j.id)));
+          const validJobs = supabaseJobs.filter(j => !deletedJobsRef.current.has(String(j.id)) && !isRemovedJob(j));
           setJobs(prev => deduplicateJobs([...validJobs, ...prev]));
         }
       } catch (err) {
