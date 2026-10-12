@@ -2201,7 +2201,7 @@ export const Media = () => {
           )}
 
           {/* SECTION 4: CREDENTIALS & CASE STUDIES */}
-          {filteredCredentials.length > 0 && (filter === 'all' || filter === 'credentials' || productSubFilter === 'certificates') && (
+          {(filter === 'all' || filter === 'credentials' || productSubFilter === 'certificates') && (
             <motion.div 
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2226,16 +2226,18 @@ export const Media = () => {
               </div>
 
               {/* Interactive Certificate Cards Grid */}
-              <div className="visual-assets-grid">
-                {filteredCredentials.map((cred: any, idx: number) => (
-                  <CredentialMediaCard
-                    key={`${cred.id || 'cred'}-${idx}`}
-                    cred={cred}
-                    onOpenZoom={() => openZoomGallery(filteredCredentials.map(c => ({ url: getEncodedUrl(c.url), title: c.title })), idx, cred.title)}
-                    fallbackSvg={getFallbackSvg(cred.title)}
-                  />
-                ))}
-              </div>
+              {filteredCredentials.length > 0 && (
+                <div className="visual-assets-grid">
+                  {filteredCredentials.map((cred: any, idx: number) => (
+                    <CredentialMediaCard
+                      key={`${cred.id || 'cred'}-${idx}`}
+                      cred={cred}
+                      onOpenZoom={() => openZoomGallery(filteredCredentials.map(c => ({ url: getEncodedUrl(c.url), title: c.title })), idx, cred.title)}
+                      fallbackSvg={getFallbackSvg(cred.title)}
+                    />
+                  ))}
+                </div>
+              )}
             </motion.div>
           )}
 
