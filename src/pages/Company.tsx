@@ -369,7 +369,6 @@ export const Careers = () => {
                       fontSize: '0.85rem',
                       fontWeight: 600,
                       cursor: 'pointer',
-                      transition: 'all 0.25s ease',
                       border: isActive ? '1px solid #ffd700' : '1px solid rgba(255,255,255,0.12)',
                       background: isActive ? 'rgba(255,215,0,0.15)' : 'rgba(255,255,255,0.03)',
                       color: isActive ? '#ffd700' : 'rgba(255,255,255,0.7)',
@@ -391,18 +390,11 @@ export const Careers = () => {
                 width: '100%',
                 boxSizing: 'border-box'
               }}>
-                <AnimatePresence mode="popLayout">
                 {filteredJobs.map((j: any) => {
                   const categoryBadge = getJobCategoryBadge(j);
                   return (
-                    <motion.div
+                    <div
                       key={j.id || j.title}
-                      layout
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.3 }}
-                      whileHover={{ y: -5, borderColor: 'rgba(255,215,0,0.45)' }}
                       style={{
                         background: '#0c1017',
                         border: '1px solid rgba(255,255,255,0.08)',
@@ -411,7 +403,6 @@ export const Careers = () => {
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
-                        transition: 'all 0.3s ease',
                         position: 'relative',
                         overflow: 'hidden',
                         width: '100%',
@@ -585,11 +576,10 @@ export const Careers = () => {
                           Apply Now <Send size={13} color="#000" />
                         </button>
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
-              </AnimatePresence>
-            </div>
+              </div>
             ) : (
               <div style={{
                 textAlign: 'center',
