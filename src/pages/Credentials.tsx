@@ -12,20 +12,17 @@ import {
   Copy, 
   Check, 
   ExternalLink,
-  Download,
-  Eye,
   Building2,
   Lock,
   Phone,
   MessageCircle,
-  FileCheck2,
   MapPin,
   Mail
 } from 'lucide-react';
 
 export const Credentials = () => {
   const { t } = useLanguage();
-  const { mediaItems, openZoomGallery, showToast } = useStore();
+  const { showToast } = useStore();
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, label: string) => {
@@ -95,8 +92,6 @@ export const Credentials = () => {
     }
   ];
 
-  // Dynamic uploaded certificates from Supabase / AdminPanel
-  const uploadedCertificates = (mediaItems || []).filter((m: any) => m.type === 'credential');
 
   return (
     <PageWrapper>
@@ -356,91 +351,7 @@ export const Credentials = () => {
             </div>
           </div>
 
-          {/* SECTION: Official Uploaded Certificate Documents */}
-          {uploadedCertificates.length > 0 && (
-            <div style={{ 
-              background: 'linear-gradient(135deg, #12151e 0%, #0d1017 100%)',
-              border: '1px solid rgba(255,215,0,0.3)',
-              borderRadius: '20px',
-              padding: 'clamp(24px, 4vw, 36px)',
-              marginBottom: '50px',
-              boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '10px' }}>
-                <div>
-                  <span style={{ color: '#ffd700', fontSize: '0.8rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                    DOCUMENT REPOSITORY
-                  </span>
-                  <h2 style={{ fontFamily: "'Playfair Display', serif", color: '#ffffff', fontSize: '1.9rem', fontWeight: 700, margin: '4px 0 0 0' }}>
-                    Official Certificates &amp; Agreements ({uploadedCertificates.length})
-                  </h2>
-                </div>
-                <span style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.3)', padding: '4px 10px', borderRadius: '14px', fontSize: '0.75rem', fontWeight: 600 }}>
-                  ✓ Live Verified from Supabase Cloud
-                </span>
-              </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '20px' }}>
-                {uploadedCertificates.map((doc: any, idx: number) => (
-                  <div 
-                    key={doc.id || idx}
-                    style={{
-                      background: 'rgba(255,255,255,0.025)',
-                      border: '1px solid rgba(255,215,0,0.25)',
-                      borderRadius: '12px',
-                      overflow: 'hidden',
-                      display: 'flex',
-                      flexDirection: 'column'
-                    }}
-                  >
-                    {/* Preview / Image */}
-                    <div 
-                      onClick={() => openZoomGallery ? openZoomGallery(doc.url, doc.title || 'Official Document') : window.open(doc.url, '_blank')}
-                      style={{ height: '180px', background: '#000', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}
-                    >
-                      {doc.url?.match(/\.(jpe?g|png|webp|gif|svg)/i) || doc.url?.startsWith('data:image/') ? (
-                        <img 
-                          src={doc.url} 
-                          alt={doc.title || 'Certificate'} 
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                        />
-                      ) : (
-                        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#ffd700' }}>
-                          <FileCheck2 size={44} />
-                          <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>PDF Document / Charter</span>
-                        </div>
-                      )}
-                      <div style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.75)', color: '#ffd700', padding: '4px 8px', borderRadius: '4px', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Eye size={12} /> Click to View
-                      </div>
-                    </div>
-
-                    <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      <div>
-                        <h4 style={{ color: '#ffffff', fontSize: '1rem', fontWeight: 700, margin: '0 0 6px 0' }}>
-                          {doc.title || 'Official Certificate'}
-                        </h4>
-                        <div style={{ color: '#ffd700', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600, marginBottom: '12px' }}>
-                          {doc.productLabel || doc.sector || 'Accreditation'}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <a 
-                          href={doc.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          style={{ flex: 1, background: 'linear-gradient(135deg, #ffd700 0%, #d4af37 100%)', color: '#000', textDecoration: 'none', padding: '8px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
-                        >
-                          <Download size={13} /> Open / Download
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Verification Callout Bar */}
           <div style={{ 
