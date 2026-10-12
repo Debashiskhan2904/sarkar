@@ -95,25 +95,13 @@ export const deduplicateMedia = (items: MediaType[]): MediaType[] => {
   return result;
 };
 
-export const REMOVED_JOB_IDS = new Set<string>([
-  "job_1791829653075_vgqjx",
-  "job_1791829757420_ieq2d",
-  "job_1791829884618_7q6yu"
-]);
-
-export const isRemovedJob = (j: any): boolean => {
-  if (!j) return true;
-  const strId = String(j.id || '').trim();
-  return REMOVED_JOB_IDS.has(strId);
-};
-
 export const deduplicateJobs = (items: JobType[]): JobType[] => {
   if (!Array.isArray(items)) return [];
   const seenIds = new Set<string>();
   const result: JobType[] = [];
 
   for (const item of items) {
-    if (!item || isRemovedJob(item)) continue;
+    if (!item) continue;
     const strId = item.id !== undefined && item.id !== null ? String(item.id).trim() : '';
     if (strId && seenIds.has(strId)) continue;
     if (strId) seenIds.add(strId);
@@ -154,7 +142,7 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
   const deletedMediaRef = useRef<Set<string>>(new Set());
   const deletedAppsRef = useRef<Set<string>>(new Set());
   const deletedInqsRef = useRef<Set<string>>(new Set());
-  const deletedJobsRef = useRef<Set<string>>(new Set(Array.from(REMOVED_JOB_IDS)));
+  const deletedJobsRef = useRef<Set<string>>(new Set());
   const mediaClearedRef = useRef<boolean>(false);
 
   const [jobs, setJobs] = useState<JobType[]>([]);
@@ -188,28 +176,6 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
     // 1. Purge all data from localStorage and local storage caches so none remains locally
     purgeAllLocalStorage();
 
-    // 1b. Proactively purge the removed jobs from Firestore and sync tombstones
-    const purgeRemovedDefaultJobs = async () => {
-      try {
-        await ensureFirebaseAuth();
-        for (const remId of REMOVED_JOB_IDS) {
-          await deleteDoc(doc(db, 'jobs', remId)).catch(() => {});
-        }
-        const delDocRef = doc(db, 'settings', 'deleted_records');
-        const snap = await getDoc(delDocRef);
-        const currentDel = snap.exists() ? snap.data()?.jobs || [] : [];
-        await setDoc(delDocRef, {
-          jobs: Array.from(new Set([...currentDel, ...Array.from(REMOVED_JOB_IDS)]))
-        }, { merge: true }).catch(() => {});
-      } catch {}
-      try {
-        for (const remId of REMOVED_JOB_IDS) {
-          await removeJobFromSupabase(remId, []).catch(() => {});
-        }
-      } catch {}
-    };
-    purgeRemovedDefaultJobs();
-
     // 2. Sync tombstone / deleted records across all devices & sessions from Firestore
     const unsubDeleted = onSnapshot(doc(db, 'settings', 'deleted_records'), (snap) => {
       setDbConnected(true);
@@ -228,8 +194,8 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
           setInquiries(prev => prev.filter(i => !deletedInqsRef.current.has(String(i.id))));
         }
         if (Array.isArray(data.jobs)) {
-          deletedJobsRef.current = new Set([...data.jobs.map(String), ...Array.from(REMOVED_JOB_IDS)]);
-          setJobs(prev => prev.filter(j => !deletedJobsRef.current.has(String(j.id)) && !isRemovedJob(j)));
+          deletedJobsRef.current = new Set(data.jobs.map(String));
+          setJobs(prev => prev.filter(j => !deletedJobsRef.current.has(String(j.id))));
         }
       }
     }, (err) => {
@@ -242,10 +208,10 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
       if (!snapshot.empty) {
         const firestoreJobs = snapshot.docs
           .map(d => ({ ...d.data(), id: d.id }))
-          .filter(j => !deletedJobsRef.current.has(String(j.id)) && !isRemovedJob(j)) as JobType[];
+          .filter(j => !deletedJobsRef.current.has(String(j.id))) as JobType[];
         setJobs(prev => deduplicateJobs([...firestoreJobs, ...prev]));
       } else {
-        setJobs(prev => prev.filter(j => !isRemovedJob(j)));
+        setJobs([]);
       }
     }, (err) => {
       console.warn('Firestore jobs sync note:', err?.message);
@@ -255,7 +221,7 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         const supabaseJobs = await fetchJobsFromSupabase();
         if (Array.isArray(supabaseJobs) && supabaseJobs.length > 0) {
-          const validJobs = supabaseJobs.filter(j => !deletedJobsRef.current.has(String(j.id)) && !isRemovedJob(j));
+          const validJobs = supabaseJobs.filter(j => !deletedJobsRef.current.has(String(j.id)));
           setJobs(prev => deduplicateJobs([...validJobs, ...prev]));
         }
       } catch (err) {
@@ -533,6 +499,7 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
     // 1. Persist directly to Firebase Firestore
     try {
       await ensureFirebaseAuth();
+      deletedJobsRef.current.delete(tempId);
       await setDoc(doc(db, 'jobs', tempId), sanitizeForFirestore(newJob));
     } catch (fErr: any) {
       console.warn('Firestore job save note:', fErr?.message);
