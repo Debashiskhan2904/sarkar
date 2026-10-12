@@ -12,8 +12,133 @@ import {
   Volume2, Play, ZoomIn, FileText, Download, ArrowRight, Music, Film,
   Briefcase, MapPin, Award, TrendingUp, CheckCircle2, ShieldCheck, ChevronDown, ChevronLeft, 
   IndianRupee, Building2, ChevronRight, X, Send, Search, Filter,
-  FolderDown, Megaphone, UserCheck, Home, Gem, Truck, Sparkles, RefreshCw
+  FolderDown, Megaphone, UserCheck, Home, Gem, Truck, Sparkles, RefreshCw,
+  Clock, Phone
 } from 'lucide-react';
+
+interface ParsedJobDetails {
+  intro: string;
+  responsibilities: string[];
+  requirements: string[];
+  company: string;
+  contactPhone: string;
+  contactRaw: string;
+  extraNotes: string[];
+}
+
+const parseJobDetails = (job: any): ParsedJobDetails => {
+  if (!job) {
+    return { intro: '', responsibilities: [], requirements: [], company: '', contactPhone: '', contactRaw: '', extraNotes: [] };
+  }
+
+  const explicitResponsibilities = Array.isArray(job.responsibilities) && job.responsibilities.length > 0 
+    ? job.responsibilities.filter((r: any) => Boolean(r && String(r).trim()))
+    : [];
+  const explicitRequirements = Array.isArray(job.requirements) && job.requirements.length > 0
+    ? job.requirements.filter((r: any) => Boolean(r && String(r).trim()))
+    : [];
+
+  const rawText = String(job.desc || '').trim();
+  if (!rawText) {
+    return {
+      intro: '',
+      responsibilities: explicitResponsibilities,
+      requirements: explicitRequirements,
+      company: '',
+      contactPhone: '',
+      contactRaw: '',
+      extraNotes: []
+    };
+  }
+
+  const lines = rawText.split('\n').map((l: string) => l.trim());
+  let currentSection: 'intro' | 'responsibilities' | 'requirements' | 'contact' | 'extra' = 'intro';
+
+  const introLines: string[] = [];
+  const parsedResp: string[] = [];
+  const parsedReq: string[] = [];
+  const contactLines: string[] = [];
+  const extraLines: string[] = [];
+
+  for (const line of lines) {
+    if (!line) continue;
+    const lower = line.toLowerCase();
+
+    if (
+      lower.startsWith('key responsibilities') || 
+      lower.startsWith('responsibilities:') || 
+      lower === 'responsibilities' ||
+      lower.startsWith('job responsibilities')
+    ) {
+      currentSection = 'responsibilities';
+      continue;
+    } else if (
+      lower.startsWith('candidate requirements') || 
+      lower.startsWith('requirements:') || 
+      lower === 'requirements' ||
+      lower.startsWith('eligibility:') ||
+      lower.startsWith('qualifications:')
+    ) {
+      currentSection = 'requirements';
+      continue;
+    } else if (
+      lower.startsWith('company:') || 
+      lower.startsWith('contact:') || 
+      lower.startsWith('contact details:') || 
+      lower.startsWith('how to apply:') ||
+      lower.startsWith('recruiter:')
+    ) {
+      currentSection = 'contact';
+      contactLines.push(line);
+      continue;
+    } else if (lower.startsWith('note:') || lower.startsWith('important note:') || lower.startsWith('guidelines:')) {
+      currentSection = 'extra';
+      extraLines.push(line);
+      continue;
+    }
+
+    if (currentSection === 'intro') {
+      introLines.push(line);
+    } else if (currentSection === 'responsibilities') {
+      const cleaned = line.replace(/^[•\-\*\d+\.\)]\s*/, '').trim();
+      if (cleaned) parsedResp.push(cleaned);
+    } else if (currentSection === 'requirements') {
+      const cleaned = line.replace(/^[•\-\*\d+\.\)]\s*/, '').trim();
+      if (cleaned) parsedReq.push(cleaned);
+    } else if (currentSection === 'contact') {
+      contactLines.push(line);
+    } else {
+      extraLines.push(line);
+    }
+  }
+
+  let contactPhone = '';
+  const phoneMatch = rawText.match(/(?:Contact|Phone|Mobile|Tel|Call)[:\s]*([+0-9\s-]{10,15})/i) || rawText.match(/\b([6-9]\d{9})\b/);
+  if (phoneMatch) {
+    contactPhone = phoneMatch[1].replace(/[^\d+]/g, '');
+  }
+
+  let company = '';
+  const companyLine = contactLines.find(l => l.toLowerCase().startsWith('company:'));
+  if (companyLine) {
+    company = companyLine.replace(/^company:\s*/i, '').trim();
+  } else if (rawText.toLowerCase().includes('the sarkar enterprise')) {
+    company = 'THE SARKAR ENTERPRISE';
+  }
+
+  const finalResp = explicitResponsibilities.length > 0 ? explicitResponsibilities : parsedResp;
+  const finalReq = explicitRequirements.length > 0 ? explicitRequirements : parsedReq;
+
+  return {
+    intro: introLines.join(' '),
+    responsibilities: finalResp,
+    requirements: finalReq,
+    company: company || 'THE SARKAR ENTERPRISE',
+    contactPhone: contactPhone || '8670783810',
+    contactRaw: contactLines.join(' • '),
+    extraNotes: extraLines
+  };
+};
 
 export const Careers = () => {
   const { jobs, addApplication, showToast } = useStore();
@@ -1199,143 +1324,432 @@ export const Careers = () => {
 
       {/* Role Details Modal Popup */}
       <AnimatePresence>
-        {activeModalJob && (
-          <div 
-            onClick={() => setActiveModalJob(null)}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0,0,0,0.85)',
-              backdropFilter: 'blur(8px)',
-              zIndex: 9999,
-              display: 'flex',
-              alignItems: 'center',
-              justify: 'center',
-              padding: '20px'
-            }}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              onClick={(e) => e.stopPropagation()}
+        {activeModalJob && (() => {
+          const parsed = parseJobDetails(activeModalJob);
+          return (
+            <div 
+              onClick={() => setActiveModalJob(null)}
               style={{
-                background: '#12151c',
-                border: '1px solid rgba(255,215,0,0.4)',
-                borderRadius: '16px',
-                padding: '32px',
-                maxWidth: '600px',
-                width: '100%',
-                maxHeight: '90vh',
-                overflowY: 'auto',
-                position: 'relative',
-                boxShadow: '0 30px 80px rgba(0,0,0,0.8)'
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.85)',
+                backdropFilter: 'blur(8px)',
+                zIndex: 9999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '16px'
               }}
             >
-              <button
-                onClick={() => setActiveModalJob(null)}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.94, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.94, y: 15 }}
+                transition={{ duration: 0.2 }}
+                onClick={(e) => e.stopPropagation()}
                 style={{
-                  position: 'absolute',
-                  top: '16px',
-                  right: '16px',
-                  background: 'none',
-                  border: 'none',
-                  color: 'rgba(255,255,255,0.6)',
-                  fontSize: '1.2rem',
-                  cursor: 'pointer'
+                  background: 'linear-gradient(180deg, #121620 0%, #0a0d14 100%)',
+                  border: '1px solid rgba(255,215,0,0.35)',
+                  borderRadius: '20px',
+                  padding: '28px 32px',
+                  maxWidth: '720px',
+                  width: '100%',
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                  position: 'relative',
+                  boxShadow: '0 25px 80px rgba(0,0,0,0.85), 0 0 35px rgba(255,215,0,0.06)'
                 }}
               >
-                ✕
-              </button>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <div style={{ color: '#ffd700', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                  {t('positionDetails')}
-                </div>
-                <div style={{
-                  padding: '4px 12px',
-                  borderRadius: '9999px',
-                  background: 'rgba(255,215,0,0.12)',
-                  border: '1px solid rgba(255,215,0,0.35)',
-                  color: '#ffd700',
-                  fontSize: '0.78rem',
-                  fontWeight: 600
-                }}>
-                  {getJobCategoryBadge(activeModalJob)}
-                </div>
-              </div>
-
-              <h2 style={{ fontFamily: "'Playfair Display', serif", color: '#ffffff', fontSize: '1.8rem', fontWeight: 700, marginBottom: '14px' }}>
-                {activeModalJob.title}
-              </h2>
-
-              <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.98rem', lineHeight: 1.6, marginBottom: '20px' }}>
-                {activeModalJob.desc}
-              </p>
-
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '18px', marginBottom: '24px' }}>
-                <h4 style={{ color: '#ffd700', margin: '0 0 12px 0', fontSize: '0.95rem', fontWeight: 700 }}>{t('keySpecs')}</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)' }}>
-                  <div>🏢 <strong>Department:</strong> {activeModalJob.dept || 'Operations'}</div>
-                  <div>📍 <strong>Location:</strong> {activeModalJob.loc || 'Bengal & Region'}</div>
-                  <div>⏱ <strong>Type:</strong> {activeModalJob.type || 'Full-time'}</div>
-                  <div>📈 <strong>Experience:</strong> {activeModalJob.exp || 'Freshers / Exp'}</div>
-                  <div style={{ gridColumn: '1 / -1', color: '#ffd700', fontWeight: 600 }}>
-                    💰 <strong>Salary / CTC:</strong> {activeModalJob.salary || 'Competitive CTC'}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '24px' }}>
-                <h4 style={{ color: '#ffffff', fontSize: '1rem', fontWeight: 700, marginBottom: '10px' }}>{t('roleGuidelinesHeader')}</h4>
-                <ul style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.9rem', lineHeight: 1.6, paddingLeft: '18px', margin: 0 }}>
-                  <li>{t('roleReq1')}</li>
-                  <li>{t('roleReq2')}</li>
-                  <li>{t('roleReq3')}</li>
-                  <li>{t('roleReq4')}</li>
-                </ul>
-              </div>
-
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                {/* Close Button */}
                 <button
                   onClick={() => setActiveModalJob(null)}
                   style={{
-                    background: 'transparent',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    color: '#ffffff',
-                    padding: '10px 20px',
-                    borderRadius: '8px',
+                    position: 'absolute',
+                    top: '20px',
+                    right: '20px',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    color: 'rgba(255,255,255,0.7)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    zIndex: 2
+                  }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.background = 'rgba(255,215,0,0.15)'; 
+                    e.currentTarget.style.borderColor = '#ffd700'; 
+                    e.currentTarget.style.color = '#ffd700'; 
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; 
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; 
+                    e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; 
+                  }}
+                  aria-label="Close"
+                >
+                  <X size={18} />
+                </button>
+
+                {/* Header Category & Status Bar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '14px', paddingRight: '44px' }}>
+                  <div style={{
+                    color: '#ffd700',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.12em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <Sparkles size={13} color="#ffd700" />
+                    {t('positionDetails')}
+                  </div>
+
+                  <div style={{
+                    padding: '3px 12px',
+                    borderRadius: '9999px',
+                    background: 'rgba(255,215,0,0.12)',
+                    border: '1px solid rgba(255,215,0,0.35)',
+                    color: '#ffd700',
+                    fontSize: '0.78rem',
+                    fontWeight: 700
+                  }}>
+                    {getJobCategoryBadge(activeModalJob)}
+                  </div>
+
+                  <div style={{
+                    padding: '3px 10px',
+                    borderRadius: '9999px',
+                    background: 'rgba(34,197,94,0.12)',
+                    border: '1px solid rgba(34,197,94,0.3)',
+                    color: '#4ade80',
+                    fontSize: '0.74rem',
                     fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
-                >
-                  {t('btnClose')}
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedRole(activeModalJob.title);
-                    setActiveModalJob(null);
-                    document.getElementById('applyFormContainer')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  style={{
-                    background: 'linear-gradient(135deg, #ffd700, #eab308)',
-                    border: 'none',
-                    color: '#000000',
-                    padding: '10px 24px',
-                    borderRadius: '8px',
-                    fontWeight: 800,
-                    cursor: 'pointer'
-                  }}
-                >
-                  {t('careersApplyNow')}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4ade80', display: 'inline-block' }} />
+                    Actively Hiring
+                  </div>
+                </div>
+
+                {/* Job Title */}
+                <h2 style={{
+                  fontFamily: "'Playfair Display', serif",
+                  color: '#ffffff',
+                  fontSize: '1.75rem',
+                  fontWeight: 700,
+                  lineHeight: 1.3,
+                  marginBottom: '16px'
+                }}>
+                  {activeModalJob.title}
+                </h2>
+
+                {/* Key Specifications Grid */}
+                <div style={{ marginBottom: '22px' }}>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                    gap: '10px',
+                    marginBottom: '10px'
+                  }}>
+
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ffd700', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+                        <MapPin size={13} /> {t('locLabel') || 'Location'}
+                      </div>
+                      <div style={{ color: '#ffffff', fontSize: '0.88rem', fontWeight: 600 }}>
+                        {activeModalJob.loc || 'Bengal & Region'}
+                      </div>
+                    </div>
+
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ffd700', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+                        <Clock size={13} /> {t('empLabel') || 'Type'}
+                      </div>
+                      <div style={{ color: '#ffffff', fontSize: '0.88rem', fontWeight: 600 }}>
+                        {activeModalJob.type || 'Full-time'}
+                      </div>
+                    </div>
+
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ffd700', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+                        <TrendingUp size={13} /> {t('expLabel') || 'Experience'}
+                      </div>
+                      <div style={{ color: '#ffffff', fontSize: '0.88rem', fontWeight: 600 }}>
+                        {activeModalJob.exp || 'Freshers / Exp'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Compensation Highlight */}
+                  {activeModalJob.salary && (
+                    <div style={{
+                      background: 'linear-gradient(135deg, rgba(255,215,0,0.09) 0%, rgba(255,215,0,0.02) 100%)',
+                      border: '1px solid rgba(255,215,0,0.3)',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}>
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
+                        background: 'rgba(255,215,0,0.15)',
+                        border: '1px solid rgba(255,215,0,0.4)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <IndianRupee size={16} color="#ffd700" />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ color: '#ffd700', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>
+                          Compensation / Salary Details
+                        </div>
+                        <div style={{ color: '#ffffff', fontSize: '0.9rem', fontWeight: 600, lineHeight: 1.5 }}>
+                          {activeModalJob.salary}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Role Overview Paragraph */}
+                {parsed.intro && (
+                  <div style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    borderLeft: '3px solid #ffd700',
+                    borderRadius: '0 12px 12px 0',
+                    padding: '14px 18px',
+                    marginBottom: '20px',
+                    color: 'rgba(255,255,255,0.92)',
+                    fontSize: '0.94rem',
+                    lineHeight: 1.65
+                  }}>
+                    {parsed.intro}
+                  </div>
+                )}
+
+                {/* Key Responsibilities */}
+                {parsed.responsibilities.length > 0 && (
+                  <div style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '14px',
+                    padding: '18px 20px',
+                    marginBottom: '18px'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: '#ffd700',
+                      fontSize: '0.95rem',
+                      fontWeight: 700,
+                      marginBottom: '14px'
+                    }}>
+                      <CheckCircle2 size={17} color="#ffd700" />
+                      Key Responsibilities
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {parsed.responsibilities.map((resp, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)', lineHeight: 1.55 }}>
+                          <span style={{ color: '#ffd700', fontWeight: 700, lineHeight: 1.2, marginTop: '2px' }}>•</span>
+                          <span>{resp}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Candidate Requirements */}
+                {parsed.requirements.length > 0 && (
+                  <div style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '14px',
+                    padding: '18px 20px',
+                    marginBottom: '18px'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: '#ffd700',
+                      fontSize: '0.95rem',
+                      fontWeight: 700,
+                      marginBottom: '14px'
+                    }}>
+                      <UserCheck size={17} color="#ffd700" />
+                      Candidate Requirements & Eligibility
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {parsed.requirements.map((req, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)', lineHeight: 1.55 }}>
+                          <span style={{ color: '#ffd700', fontWeight: 700, lineHeight: 1.2, marginTop: '2px' }}>•</span>
+                          <span>{req}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recruiter & Company Contact Desk */}
+                {(parsed.contactPhone || parsed.company) && (
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(255,215,0,0.08) 0%, rgba(255,215,0,0.02) 100%)',
+                    border: '1px solid rgba(255,215,0,0.25)',
+                    borderRadius: '14px',
+                    padding: '16px 20px',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}>
+                    <div>
+                      <div style={{ color: '#ffd700', fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        Official Hiring Desk
+                      </div>
+                      <div style={{ color: '#ffffff', fontSize: '0.94rem', fontWeight: 700, marginTop: '2px' }}>
+                        {parsed.company}
+                      </div>
+                      {parsed.contactRaw && (
+                        <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.82rem', marginTop: '2px' }}>
+                          {parsed.contactRaw}
+                        </div>
+                      )}
+                    </div>
+                    {parsed.contactPhone && (
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <a
+                          href={'tel:' + parsed.contactPhone}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'rgba(255,215,0,0.15)',
+                            border: '1px solid rgba(255,215,0,0.4)',
+                            color: '#ffd700',
+                            padding: '8px 16px',
+                            borderRadius: '8px',
+                            fontSize: '0.84rem',
+                            fontWeight: 700,
+                            textDecoration: 'none',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <Phone size={14} /> Call {parsed.contactPhone}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Extra Notes if any */}
+                {parsed.extraNotes.length > 0 && (
+                  <div style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: '12px',
+                    padding: '14px 18px',
+                    marginBottom: '18px',
+                    fontSize: '0.86rem',
+                    color: 'rgba(255,255,255,0.8)',
+                    lineHeight: 1.6,
+                    whiteSpace: 'pre-line'
+                  }}>
+                    {parsed.extraNotes.join('\n')}
+                  </div>
+                )}
+
+                {/* Fallback Role Guidelines if no specific responsibilities/requirements */}
+                {parsed.responsibilities.length === 0 && parsed.requirements.length === 0 && (
+                  <div style={{ marginBottom: '22px' }}>
+                    <h4 style={{ color: '#ffffff', fontSize: '0.95rem', fontWeight: 700, marginBottom: '10px' }}>{t('roleGuidelinesHeader')}</h4>
+                    <ul style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.88rem', lineHeight: 1.6, paddingLeft: '18px', margin: 0 }}>
+                      <li>{t('roleReq1')}</li>
+                      <li>{t('roleReq2')}</li>
+                      <li>{t('roleReq3')}</li>
+                      <li>{t('roleReq4')}</li>
+                    </ul>
+                  </div>
+                )}
+
+                {/* Action Footer */}
+                <div style={{
+                  display: 'flex',
+                  gap: '12px',
+                  justifyContent: 'flex-end',
+                  paddingTop: '20px',
+                  borderTop: '1px solid rgba(255,255,255,0.08)',
+                  marginTop: '24px'
+                }}>
+                  <button
+                    onClick={() => setActiveModalJob(null)}
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      color: '#ffffff',
+                      padding: '10px 22px',
+                      borderRadius: '10px',
+                      fontWeight: 600,
+                      fontSize: '0.88rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                  >
+                    {t('btnClose')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedRole(activeModalJob.title);
+                      setActiveModalJob(null);
+                      document.getElementById('applyFormContainer')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    style={{
+                      background: 'linear-gradient(135deg, #ffd700, #eab308)',
+                      border: 'none',
+                      color: '#000000',
+                      padding: '10px 26px',
+                      borderRadius: '10px',
+                      fontWeight: 800,
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      boxShadow: '0 4px 20px rgba(255,215,0,0.35)',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 25px rgba(255,215,0,0.5)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(255,215,0,0.35)'; }}
+                  >
+                    <span>{t('careersApplyNow')}</span>
+                    <Send size={15} color="#000" />
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
       </AnimatePresence>
     </PageWrapper>
   );
