@@ -176,14 +176,21 @@ export const Careers = () => {
   ];
 
   const getJobCategoryBadge = (job: any) => {
+    const cat = (job.category || '').toLowerCase().trim();
+    const title = (job.title || '').toLowerCase().trim();
+
+    if (cat === 'marketing' || title.includes('marketing')) {
+      return 'Marketing';
+    }
+    if (cat === 'sales' || (!title.includes('marketing') && (title.includes('sales') || title.includes('hawker') || title.includes('rcma')))) {
+      return 'Sales';
+    }
     if (job.category && job.category !== 'General') {
       if (job.category === 'Interior' || job.category === 'Jewellery') return 'Interior & Jewellery';
       if (job.category === 'Operations' || job.category === 'FMCG') return 'FMCG & Operations';
       return job.category;
     }
     const text = `${job.title} ${job.dept} ${job.desc || ''}`.toLowerCase();
-    if (text.includes('sales') || text.includes('hawker') || text.includes('rcma')) return 'Sales';
-    if (text.includes('marketing') || text.includes('digital')) return 'Marketing';
     if (text.includes('admin') || text.includes('hr') || text.includes('office')) return 'Administration';
     if (text.includes('interior') || text.includes('jewel') || text.includes('kitchen') || text.includes('gold')) return 'Interior & Jewellery';
     if (text.includes('fmcg') || text.includes('logistics') || text.includes('c&f') || text.includes('stockist') || text.includes('operations')) return 'FMCG & Operations';
@@ -191,13 +198,16 @@ export const Careers = () => {
   };
 
   const getJobIcon = (job: any) => {
-    const text = `${job.title} ${job.category} ${job.dept} ${job.desc || ''}`.toLowerCase();
-    if (text.includes('sales') || text.includes('hawker') || text.includes('promoter') || text.includes('rcma')) {
-      return <TrendingUp size={20} color="#ffd700" />;
-    }
-    if (text.includes('marketing') || text.includes('digital') || text.includes('social') || text.includes('brand')) {
+    const cat = (job.category || '').toLowerCase().trim();
+    const title = (job.title || '').toLowerCase().trim();
+
+    if (cat === 'marketing' || title.includes('marketing')) {
       return <Megaphone size={20} color="#ffd700" />;
     }
+    if (cat === 'sales' || (!title.includes('marketing') && (title.includes('sales') || title.includes('hawker') || title.includes('rcma') || title.includes('promoter')))) {
+      return <TrendingUp size={20} color="#ffd700" />;
+    }
+    const text = `${job.title} ${job.category} ${job.dept} ${job.desc || ''}`.toLowerCase();
     if (text.includes('admin') || text.includes('hr') || text.includes('office') || text.includes('coordinator')) {
       return <UserCheck size={20} color="#ffd700" />;
     }
@@ -214,21 +224,43 @@ export const Careers = () => {
   const filteredJobs = jobs.filter((j: any) => {
     if (selectedCategory === 'all') return true;
     const cat = (j.category || '').toLowerCase().trim();
-    const text = `${j.title} ${j.dept} ${j.desc || ''}`.toLowerCase();
+    const title = (j.title || '').toLowerCase().trim();
+    const dept = (j.dept || '').toLowerCase().trim();
+
+    // Pure Marketing determination: category is marketing or title represents marketing
+    const isMarketingRole = 
+      cat === 'marketing' || 
+      title.includes('marketing') ||
+      dept === 'marketing';
+
+    // Pure Sales determination: category is sales or title represents sales, but strictly NOT a marketing role
+    const isSalesRole = 
+      !isMarketingRole && (
+        cat === 'sales' || 
+        title.includes('sales') || 
+        title.includes('hawker') || 
+        title.includes('rcma') || 
+        title.includes('promoter') || 
+        title.includes('bdm') ||
+        dept === 'sales'
+      );
+
     if (selectedCategory === 'sales') {
-      return cat === 'sales' || cat.includes('sales') || text.includes('sales') || text.includes('hawker') || text.includes('rcma') || text.includes('promoter') || text.includes('bdm');
+      // In Sales category, strictly showcase ONLY Sales jobs
+      return isSalesRole;
     }
     if (selectedCategory === 'marketing') {
-      return cat === 'marketing' || cat.includes('marketing') || text.includes('marketing') || text.includes('digital') || text.includes('social') || text.includes('media');
+      // In Marketing category, strictly showcase ONLY Marketing jobs
+      return isMarketingRole;
     }
     if (selectedCategory === 'admin') {
-      return cat === 'administration' || cat.includes('admin') || text.includes('administrative') || text.includes('office') || text.includes('hr') || text.includes('coordinator');
+      return cat === 'administration' || cat.includes('admin') || title.includes('administrative') || title.includes('office') || title.includes('hr') || title.includes('coordinator');
     }
     if (selectedCategory === 'operations') {
-      return cat === 'fmcg & operations' || cat.includes('operations') || cat.includes('fmcg') || text.includes('fmcg') || text.includes('logistics') || text.includes('c&f') || text.includes('stockist');
+      return cat === 'fmcg & operations' || cat.includes('operations') || cat.includes('fmcg') || (!isSalesRole && !isMarketingRole && (title.includes('fmcg') || title.includes('logistics') || title.includes('c&f') || title.includes('stockist')));
     }
     if (selectedCategory === 'interior_jewellery') {
-      return cat === 'interior & jewellery' || cat.includes('interior') || cat.includes('jewel') || text.includes('interior') || text.includes('modular') || text.includes('jewellery') || text.includes('stylo') || text.includes('gold');
+      return cat === 'interior & jewellery' || cat.includes('interior') || cat.includes('jewel') || title.includes('interior') || title.includes('modular') || title.includes('jewellery') || title.includes('stylo') || title.includes('gold');
     }
     return true;
   });
