@@ -210,8 +210,6 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
           .map(d => ({ ...d.data(), id: d.id }))
           .filter(j => !deletedJobsRef.current.has(String(j.id))) as JobType[];
         setJobs(prev => deduplicateJobs([...firestoreJobs, ...prev]));
-      } else {
-        setJobs([]);
       }
     }, (err) => {
       console.warn('Firestore jobs sync note:', err?.message);
