@@ -1948,7 +1948,21 @@ export const AdminPanel = () => {
                                 (j.dept && j.dept.toLowerCase().includes(q)) ||
                                 (j.loc && j.loc.toLowerCase().includes(q)) ||
                                 (j.desc && j.desc.toLowerCase().includes(q));
-                              const matchesCat = jobCategoryFilter === 'All' || (j.category || 'General') === jobCategoryFilter;
+
+                              const cat = (j.category || '').toLowerCase().trim();
+                              const title = (j.title || '').toLowerCase().trim();
+                              const isMarketingRole = cat === 'marketing' || title.includes('marketing');
+                              const isSalesRole = !isMarketingRole && (cat === 'sales' || title.includes('sales') || title.includes('hawker') || title.includes('rcma') || title.includes('promoter'));
+
+                              let matchesCat = true;
+                              if (jobCategoryFilter === 'Sales') {
+                                matchesCat = isSalesRole;
+                              } else if (jobCategoryFilter === 'Marketing') {
+                                matchesCat = isMarketingRole;
+                              } else if (jobCategoryFilter !== 'All') {
+                                matchesCat = (j.category || 'General') === jobCategoryFilter;
+                              }
+
                               return matchesSearch && matchesCat;
                             });
 
