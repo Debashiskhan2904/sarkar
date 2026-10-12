@@ -2584,7 +2584,6 @@ export const AdminPanel = () => {
                                 <th>Title</th>
                                 <th>Sector Category</th>
                                 <th>Sub-Category</th>
-                                <th>Badge Label</th>
                                 <th>Action</th>
                               </tr>
                             </thead>
@@ -2594,7 +2593,6 @@ export const AdminPanel = () => {
                                   <td><strong>{m.title}</strong></td>
                                   <td><span style={{ textTransform: 'uppercase', fontSize: '0.75rem', padding: '2px 8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}>{m.sector || 'fmcg'}</span></td>
                                   <td><span style={{ color: '#aaa', fontSize: '0.82rem' }}>{m.productSub || 'all_sub'}</span></td>
-                                  <td><span style={{ color: '#ffd700', fontSize: '0.82rem' }}>{m.productLabel || 'Custom'}</span></td>
                                   <td>
                                     <div style={{ display: 'flex', gap: '6px' }}>
                                       <motion.button 
@@ -2753,11 +2751,6 @@ export const AdminPanel = () => {
                         )}
                       </select>
                     </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label>Badge Label / Display Tag</label>
-                    <input type="text" placeholder="e.g. Priti-Ji Chanachur, Festive Scheme" value={editMProductLabel} onChange={e => setEditMProductLabel(e.target.value)} />
                   </div>
 
                   <div className="form-group">
