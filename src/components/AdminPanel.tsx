@@ -2358,7 +2358,6 @@ export const AdminPanel = () => {
                             if (newSec === 'fmcg') setMProductSub('chanachur');
                             else if (newSec === 'jewellery') setMProductSub('jewellery_scheme');
                             else if (newSec === 'interior') setMProductSub('modular_kitchen');
-                            else if (newSec === 'company') setMProductSub('corporate_branding');
                             else if (newSec === 'credentials') setMProductSub('all_sub');
                           }}
                           style={{ background: '#080808', color: '#fff', border: '1px solid rgba(255,215,0,0.3)', padding: '12px 14px', borderRadius: '8px', width: '100%', minWidth: 0, boxSizing: 'border-box', fontSize: '0.92rem', outline: 'none' }}
@@ -2366,7 +2365,6 @@ export const AdminPanel = () => {
                           <option value="fmcg">🛒 FMCG Products (Chanachur, Mosquito, Sweets, C&F)</option>
                           <option value="jewellery">💎 Jewellery & Gold Schemes (Stylo, Monopoly, Gold Equipment)</option>
                           <option value="interior">🏠 Interior Projects (Modular Kitchen, Living, Mall)</option>
-                          <option value="company">🏢 Corporate / Brand Vision</option>
                           <option value="credentials">📄 Credentials & Certificates</option>
                         </select>
                       </div>
@@ -2397,12 +2395,6 @@ export const AdminPanel = () => {
                               <option value="modular_kitchen">🍳 Modular Kitchens</option>
                               <option value="luxury_living">🛋️ Luxury Living Units</option>
                               <option value="corporate_branding">🏢 Commercial & Mall Setup</option>
-                            </>
-                          )}
-                          {mSector === 'company' && (
-                            <>
-                              <option value="corporate_branding">🎬 Corporate Overview / Headquarters</option>
-                              <option value="all_sub">🏢 Company Vision</option>
                             </>
                           )}
                           {mSector === 'credentials' && (
@@ -2701,14 +2693,12 @@ export const AdminPanel = () => {
                           if (newSec === 'fmcg') setEditMProductSub('chanachur');
                           else if (newSec === 'jewellery') setEditMProductSub('jewellery_scheme');
                           else if (newSec === 'interior') setEditMProductSub('modular_kitchen');
-                          else if (newSec === 'company') setEditMProductSub('corporate_branding');
                           else if (newSec === 'credentials') setEditMProductSub('all_sub');
                         }}
                       >
                         <option value="fmcg">FMCG & Packaged Foods</option>
                         <option value="jewellery">Fine Jewellery & Gold Scheme</option>
                         <option value="interior">Luxury Living & Modular Interior</option>
-                        <option value="company">Corporate / Brand Vision</option>
                         <option value="credentials">Credentials & Certificates</option>
                       </select>
                     </div>
@@ -2734,12 +2724,6 @@ export const AdminPanel = () => {
                             <option value="modular_kitchen">🍳 Modular Kitchens</option>
                             <option value="luxury_living">🛋️ Luxury Living Units</option>
                             <option value="corporate_branding">🏢 Commercial & Mall Setup</option>
-                          </>
-                        )}
-                        {editMSector === 'company' && (
-                          <>
-                            <option value="corporate_branding">🎬 Corporate Overview / Headquarters</option>
-                            <option value="all_sub">🏢 Company Vision</option>
                           </>
                         )}
                         {editMSector === 'credentials' && (
