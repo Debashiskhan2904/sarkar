@@ -104,19 +104,7 @@ export const REMOVED_JOB_IDS = new Set<string>([
 export const isRemovedJob = (j: any): boolean => {
   if (!j) return true;
   const strId = String(j.id || '').trim();
-  if (REMOVED_JOB_IDS.has(strId)) return true;
-  const title = (j.title || '').trim().toLowerCase();
-  if (
-    title === 'field sales executive (angry frog product)' ||
-    title === 'field marketing (angry frog mosquito repellent products)' ||
-    title === 'marketing executive (fmcg & distributor sales)' ||
-    title.includes('angry frog product') ||
-    title.includes('angry frog mosquito repellent products') ||
-    title.includes('fmcg & distributor sales')
-  ) {
-    return true;
-  }
-  return false;
+  return REMOVED_JOB_IDS.has(strId);
 };
 
 export const deduplicateJobs = (items: JobType[]): JobType[] => {
