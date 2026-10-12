@@ -110,7 +110,53 @@ export const deduplicateJobs = (items: JobType[]): JobType[] => {
   return result;
 };
 
-export const DEFAULT_COMPANY_JOBS: Omit<JobType, 'id'>[] = [];
+export const DEFAULT_COMPANY_JOBS: JobType[] = [
+  {
+    id: "job_1791829653075_vgqjx",
+    title: "Field Sales Executive (Angry Frog Product)",
+    dept: "General",
+    category: "Sales",
+    loc: "As per company-assigned marketing area",
+    type: "Full-time",
+    exp: "Fresher or experienced candidates can apply. Sales and marketing experience preferred",
+    salary: "Performance-based income opportunity advertised as up to ₹18,000 per month. Actual earnings depend on the company's payment terms, sales performance, and applicable conditions.",
+    desc: `THE SARKAR ENTERPRISE is looking for motivated and hardworking individuals to promote and market Angry Frog mosquito-repellent products.\n\nKey Responsibilities:\n\nPromote and demonstrate Angry Frog products to potential customers.\nVisit assigned areas and follow the company's marketing routes.\nGenerate leads and develop new customer relationships.\nExplain product features, benefits, and pricing to customers.\nSupport product distribution and sales activities.\nMaintain customer relationships and provide regular sales updates.\nAchieve assigned sales and marketing targets.\nFollow company policies and product-handling guidelines.\n\nCandidate Requirements:\n\nGood communication and interpersonal skills.\nWillingness to travel within assigned marketing areas.\nSelf-motivated, responsible, and target-oriented.\nFreshers are welcome to apply.\n\nCompany: THE SARKAR ENTERPRISE\nContact: 8670783810`,
+    requirements: [],
+    responsibilities: [],
+    createdAt: "2026-10-12T18:27:33.075Z",
+    updatedAt: "2026-10-12T18:27:33.075Z"
+  },
+  {
+    id: "job_1791829757420_ieq2d",
+    title: "Field Marketing (Angry Frog Mosquito Repellent Products)",
+    dept: "General",
+    category: "Marketing",
+    loc: "Durgapur, West Bengal (Bhiringi More and assigned marketing areas)",
+    type: "Full-time",
+    exp: "Fresher and experienced candidates can apply. Candidates aged 20–30 years are preferred, as stated in the recruitment poster.",
+    salary: "₹12,000–₹18,000 per month (advertised income; actual earnings depend on the company's compensation structure and applicable conditions).",
+    desc: `DESCRIPTION & KEY RESPONSIBILITIES\n\nTHE SARKAR ENTERPRISE is recruiting male and female field sales and marketing executives to promote and market Angry Frog mosquito-repellent products.\n\nKey Responsibilities:\n\nPromote Angry Frog products in assigned local areas.\nConduct door-to-door marketing and product demonstrations.\nVisit potential customers and generate sales leads.\nExplain product features, benefits, and usage to customers.\nUse a bicycle and Bluetooth sound box for field marketing activities, where required.\nBuild customer relationships and support product distribution.\nFollow assigned marketing routes and company guidelines.\nReport daily marketing activities and sales progress.\n\nRequired Documents & Equipment:\n\nAadhaar Card\nVoter ID Card\nResidential Proof\nBicycle in good working condition\nBluetooth sound box in good working condition\nAndroid mobile phone\n\nCompany Details:\n\nMarketing Company: THE SARKAR ENTERPRISE\nManufacturer: Hirak Industries, Rajasthan\nAddress: Sarkar House, Bhirangi More, Durgapur-3, West Bengal\nContact Number: 8670783810`,
+    requirements: [],
+    responsibilities: [],
+    createdAt: "2026-10-12T18:29:17.421Z",
+    updatedAt: "2026-10-12T18:29:17.421Z"
+  },
+  {
+    id: "job_1791829884618_7q6yu",
+    title: "Marketing Executive (FMCG & Distributor Sales)",
+    dept: "General",
+    category: "Marketing",
+    loc: "West Bengal: Anda, Ukhra, Raniganj, Rani Sayer, Dohmani, Pandabeswar, Kajora, Bankura, Purulia, Asansol, Barakar, Chittaranjan, Bardhaman, and Kolkata. Candidates will be assigned to one of the designated marketing areas.",
+    type: "Full-time",
+    exp: "Minimum 2 years of marketing experience. FMCG or food-sector experience in distributor-to-dealer sales and product movement preferred. Graduate in any stream preferred. Proficiency in mobile software and sales reporting. Experience in dealer visits, order collection, payment collection, and distributor management. Candidates must be willing to attend online interviews, a physical interview in Durgapur, and practical field training.",
+    salary: "Advertised monthly package: ₹35,000. Fixed salary: ₹15,000. Incentive: ₹8,000. Travel allowance: ₹6,000. Bonus: ₹6,000. Advertised senior promotion salary: ₹60,000 per month after 12 months, subject to target turnover fulfilment and promotion. Additional TSE reward: ₹12,000, subject to six months of job continuation and target quota fulfilment. All salary components, incentives, allowances, and performance conditions should be verified with the employer.",
+    desc: `THE SARKAR ENTERPRISE, a product and brand promotion company established in 2022, is seeking five Marketing Executives for FMCG distribution and field sales operations. The company promotes products including ALKEM Laboratories products, ENCOUNTER mosquito-repellent sticks, MUMMUN Soan Papdi, and Angry Frog mosquito-repellent products.\n\nKey Responsibilities:\n\nSet up sales routes and monitor daily product deliveries to active dealers.\nMaintain daily records of approximately 30 dealer visits, including first-half and second-half reporting.\nMaintain regular communication with senior management and the Business Development Manager.\nAppoint and develop C&F agents and distributors.\nCollect distributor NOCs confirming dealer credit-limit clearance before payment disbursement, as required by company policy.\nVisit approximately 30 dealers daily between 9:00 a.m. and 9:00 p.m., with order and collection targets.\nAchieve assigned monthly sales and collection targets.\nMaintain accurate dealer records, order details, payment collections, and field reports.\nParticipate in weekly online training and practical field training.\n\nPerformance Targets:\n\nMandatory monthly collection quota: ₹16 lakh.\nConsideration collection quota: ₹6 lakh.\nPromotion to Senior Marketing Executive / ASM may be considered after 12 months, subject to target turnover fulfilment.\n\nTraining & Support:\n\nOnline training sessions every Sunday.\nMarketing and competitive-sales guidance.\nPractical field training and distributor appointment support.\n\nCompany Details:\n\nMarketing Company: THE SARKAR ENTERPRISE, Purba Bardhaman, West Bengal.\nProducts: MUMMUN Soan Papdi and Angry Frog mosquito-repellent products.\nContact Person: Kishore Sarkar, Business Development Manager.\nContact Number: 86-707-838-10 (as printed in the advertisement).\nEmail: kishore8670@gmail.com.\nAdvertisement Period: 1 January 2027 – 31 January 2027.`,
+    requirements: [],
+    responsibilities: [],
+    createdAt: "2026-10-12T18:31:24.619Z",
+    updatedAt: "2026-10-12T18:31:24.619Z"
+  }
+];
 
 export const sanitizeForFirestore = (obj: any): any => {
   if (obj === null || obj === undefined) return null;
@@ -145,7 +191,7 @@ export const StoreProvider = ({ children }: { children: React.ReactNode }) => {
   const deletedJobsRef = useRef<Set<string>>(new Set());
   const mediaClearedRef = useRef<boolean>(false);
 
-  const [jobs, setJobs] = useState<JobType[]>([]);
+  const [jobs, setJobs] = useState<JobType[]>(DEFAULT_COMPANY_JOBS);
   const [applications, setApplications] = useState<AppType[]>([]);
   const [mediaItems, setMediaItems] = useState<MediaType[]>([]);
   const [inquiries, setInquiries] = useState<InquiryType[]>([]);
