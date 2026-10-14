@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { PageWrapper } from '../components/PageWrapper';
 import { useStore } from '../store';
@@ -141,6 +141,7 @@ const parseJobDetails = (job: any): ParsedJobDetails => {
 };
 
 export const Careers = () => {
+  const navigate = useNavigate();
   const { jobs, addApplication, showToast } = useStore();
   const { t } = useLanguage();
   const [selectedRole, setSelectedRole] = useState('');
@@ -651,6 +652,32 @@ export const Careers = () => {
                         paddingTop: '12px',
                         borderTop: '1px solid rgba(255,255,255,0.06)'
                       }}>
+                        <button
+                          onClick={() => {
+                            navigate('/media?sector=all&sub=hawker_scheme');
+                          }}
+                          style={{
+                            gridColumn: '1 / -1',
+                            background: 'rgba(255,215,0,0.08)',
+                            border: '1px solid rgba(255,215,0,0.4)',
+                            color: '#ffd700',
+                            padding: '10px 12px',
+                            borderRadius: '10px',
+                            fontSize: '0.82rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,215,0,0.18)'; e.currentTarget.style.borderColor = '#ffd700'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,215,0,0.08)'; e.currentTarget.style.borderColor = 'rgba(255,215,0,0.4)'; }}
+                        >
+                          <FileText size={14} color="#ffd700" /> Hawker &amp; C&amp;F Schemes 📜
+                        </button>
+
                         <button
                           onClick={() => setActiveModalJob(j)}
                           style={{
@@ -1768,6 +1795,16 @@ export const Media = () => {
   // Search query
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const sParam = params.get('sector');
+    const subParam = params.get('sub');
+    if (sParam !== null) setFilter(sParam);
+    if (subParam !== null) setProductSubFilter(subParam);
+  }, [location.search]);
+
   const getEncodedUrl = (url: string) => {
     if (!url) return '';
     return url.startsWith('/assets/') ? encodeURI(url) : url;
@@ -1873,11 +1910,22 @@ export const Media = () => {
   // Helper matching function for filter criteria
   const isMatch = (item: any) => {
     // 1. Primary Sector / Type Filter
-    if (filter === 'fmcg' && item.sector !== 'fmcg') return false;
-    if (filter === 'jewellery' && item.sector !== 'jewellery') return false;
-    if (filter === 'interior' && item.sector !== 'interior') return false;
-    if (filter === 'company' && item.sector !== 'company') return false;
-    if (filter === 'credentials' && item.sector !== 'credentials' && item.type !== 'credential') return false;
+    let effectiveFilter = filter;
+    if (effectiveFilter === 'all' && productSubFilter) {
+      if (['chanachur', 'confectionery', 'incense', 'repellent', 'fmcg_distribution', 'hawker_scheme'].includes(productSubFilter)) {
+        effectiveFilter = 'fmcg';
+      } else if (['jewellery_scheme'].includes(productSubFilter)) {
+        effectiveFilter = 'jewellery';
+      } else if (['corporate_outlet', 'plywood_corporate', 'commercial_interior', 'modular_kitchen', 'turnover_tieup'].includes(productSubFilter)) {
+        effectiveFilter = 'interior';
+      }
+    }
+
+    if (effectiveFilter === 'fmcg' && item.sector !== 'fmcg') return false;
+    if (effectiveFilter === 'jewellery' && item.sector !== 'jewellery') return false;
+    if (effectiveFilter === 'interior' && item.sector !== 'interior') return false;
+    if (effectiveFilter === 'company' && item.sector !== 'company') return false;
+    if (effectiveFilter === 'credentials' && item.sector !== 'credentials' && item.type !== 'credential') return false;
 
     // 2. Product & Section Sub-Filter
     if (productSubFilter !== 'all_sub') {
