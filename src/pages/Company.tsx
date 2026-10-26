@@ -1,0 +1,2587 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
+import { PageWrapper } from '../components/PageWrapper';
+import { useStore } from '../store';
+import { useLanguage } from '../lib/LanguageContext';
+import { VisualMediaCard, VideoMediaCard, CredentialMediaCard } from '../components/MediaGridItem';
+import { FAQJsonLd } from '../components/StructuredData';
+import { uploadToSupabase } from '../lib/supabase';
+import { validateFileMagicBytes } from '../lib/security';
+import { 
+  Volume2, Play, ZoomIn, FileText, Download, ArrowRight, Music, Film,
+  Briefcase, MapPin, Award, TrendingUp, CheckCircle2, ShieldCheck, ChevronDown, ChevronLeft, 
+  IndianRupee, Building2, ChevronRight, X, Send, Search, Filter,
+  FolderDown, Megaphone, UserCheck, Home, Gem, Truck, Sparkles, RefreshCw,
+  Clock, Phone
+} from 'lucide-react';
+
+interface ParsedJobDetails {
+  intro: string;
+  responsibilities: string[];
+  requirements: string[];
+  company: string;
+  contactPhone: string;
+  contactRaw: string;
+  extraNotes: string[];
+}
+
+const parseJobDetails = (job: any): ParsedJobDetails => {
+  if (!job) {
+    return { intro: '', responsibilities: [], requirements: [], company: '', contactPhone: '', contactRaw: '', extraNotes: [] };
+  }
+
+  const explicitResponsibilities = Array.isArray(job.responsibilities) && job.responsibilities.length > 0 
+    ? job.responsibilities.filter((r: any) => Boolean(r && String(r).trim()))
+    : [];
+  const explicitRequirements = Array.isArray(job.requirements) && job.requirements.length > 0
+    ? job.requirements.filter((r: any) => Boolean(r && String(r).trim()))
+    : [];
+
+  const rawText = String(job.desc || '').trim();
+  if (!rawText) {
+    return {
+      intro: '',
+      responsibilities: explicitResponsibilities,
+      requirements: explicitRequirements,
+      company: '',
+      contactPhone: '',
+      contactRaw: '',
+      extraNotes: []
+    };
+  }
+
+  const lines = rawText.split('\n').map((l: string) => l.trim());
+  let currentSection: 'intro' | 'responsibilities' | 'requirements' | 'contact' | 'extra' = 'intro';
+
+  const introLines: string[] = [];
+  const parsedResp: string[] = [];
+  const parsedReq: string[] = [];
+  const contactLines: string[] = [];
+  const extraLines: string[] = [];
+
+  for (const line of lines) {
+    if (!line) continue;
+    const lower = line.toLowerCase();
+
+    if (
+      lower.startsWith('key responsibilities') || 
+      lower.startsWith('responsibilities:') || 
+      lower === 'responsibilities' ||
+      lower.startsWith('job responsibilities')
+    ) {
+      currentSection = 'responsibilities';
+      continue;
+    } else if (
+      lower.startsWith('candidate requirements') || 
+      lower.startsWith('requirements:') || 
+      lower === 'requirements' ||
+      lower.startsWith('eligibility:') ||
+      lower.startsWith('qualifications:')
+    ) {
+      currentSection = 'requirements';
+      continue;
+    } else if (
+      lower.startsWith('company:') || 
+      lower.startsWith('contact:') || 
+      lower.startsWith('contact details:') || 
+      lower.startsWith('how to apply:') ||
+      lower.startsWith('recruiter:')
+    ) {
+      currentSection = 'contact';
+      contactLines.push(line);
+      continue;
+    } else if (lower.startsWith('note:') || lower.startsWith('important note:') || lower.startsWith('guidelines:')) {
+      currentSection = 'extra';
+      extraLines.push(line);
+      continue;
+    }
+
+    if (currentSection === 'intro') {
+      introLines.push(line);
+    } else if (currentSection === 'responsibilities') {
+      const cleaned = line.replace(/^[•\-\*\d+\.\)]\s*/, '').trim();
+      if (cleaned) parsedResp.push(cleaned);
+    } else if (currentSection === 'requirements') {
+      const cleaned = line.replace(/^[•\-\*\d+\.\)]\s*/, '').trim();
+      if (cleaned) parsedReq.push(cleaned);
+    } else if (currentSection === 'contact') {
+      contactLines.push(line);
+    } else {
+      extraLines.push(line);
+    }
+  }
+
+  let contactPhone = '';
+  const phoneMatch = rawText.match(/(?:Contact|Phone|Mobile|Tel|Call)[:\s]*([+0-9\s-]{10,15})/i) || rawText.match(/\b([6-9]\d{9})\b/);
+  if (phoneMatch) {
+    contactPhone = phoneMatch[1].replace(/[^\d+]/g, '');
+  }
+
+  let company = '';
+  const companyLine = contactLines.find(l => l.toLowerCase().startsWith('company:'));
+  if (companyLine) {
+    company = companyLine.replace(/^company:\s*/i, '').trim();
+  } else if (rawText.toLowerCase().includes('the sarkar enterprise')) {
+    company = 'THE SARKAR ENTERPRISE';
+  }
+
+  const finalResp = explicitResponsibilities.length > 0 ? explicitResponsibilities : parsedResp;
+  const finalReq = explicitRequirements.length > 0 ? explicitRequirements : parsedReq;
+
+  return {
+    intro: introLines.join(' '),
+    responsibilities: finalResp,
+    requirements: finalReq,
+    company: company || 'THE SARKAR ENTERPRISE',
+    contactPhone: contactPhone || '8670783810',
+    contactRaw: contactLines.join(' • '),
+    extraNotes: extraLines
+  };
+};
+
+export const Careers = () => {
+  const navigate = useNavigate();
+  const { jobs, addApplication, showToast } = useStore();
+  const { t } = useLanguage();
+  const [selectedRole, setSelectedRole] = useState('');
+  const [selectedDept, setSelectedDept] = useState('all');
+  const [activeModalJob, setActiveModalJob] = useState<any | null>(null);
+  
+  const [fileName, setFileName] = useState('');
+  const [fileSize, setFileSize] = useState('');
+  const [fileData, setFileData] = useState<string | null>(null);
+  const [rawResumeFile, setRawResumeFile] = useState<File | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [captchaCode, setCaptchaCode] = useState('');
+  const [captchaInput, setCaptchaInput] = useState('');
+  const [captchaError, setCaptchaError] = useState(false);
+
+  const generateCaptcha = () => {
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+    let code = '';
+    for (let i = 0; i < 5; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  };
+
+  const refreshCaptcha = () => {
+    setCaptchaCode(generateCaptcha());
+    setCaptchaInput('');
+    setCaptchaError(false);
+  };
+
+  useEffect(() => {
+    refreshCaptcha();
+  }, []);
+
+  const handleFile = async (file: File) => {
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('File size must be under 10 MB', 'error');
+        return;
+      }
+      
+      // Magic Byte / Signature Validation for Candidate Documents
+      const validation = await validateFileMagicBytes(file, ['document', 'image']);
+      if (!validation.valid) {
+        showToast(validation.error || 'Security Warning: Only valid PDF, DOCX, or scanned document files are allowed.', 'error');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
+      setRawResumeFile(file);
+      setFileName(file.name);
+      setFileSize((file.size / 1024).toFixed(1) + ' KB');
+      
+      const reader = new FileReader();
+      reader.onload = () => {
+        setFileData(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const submitApplication = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!fileData && !rawResumeFile) { 
+      showToast('Please upload your resume / CV document (PDF or DOC)', 'error'); 
+      return; 
+    }
+
+    if (!captchaInput.trim()) {
+      showToast('Please enter the security verification CAPTCHA code', 'error');
+      setCaptchaError(true);
+      return;
+    }
+
+    if (captchaInput.trim().toUpperCase() !== captchaCode.toUpperCase()) {
+      showToast('Incorrect CAPTCHA code. Please enter the characters shown and try again.', 'error');
+      setCaptchaError(true);
+      refreshCaptcha();
+      return;
+    }
+    
+    setIsSubmitting(true);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    let finalResumePayload = fileData || '';
+    if (rawResumeFile) {
+      const res = await uploadToSupabase(rawResumeFile, 'resumes', rawResumeFile.name);
+      if (res.url) {
+        finalResumePayload = res.url;
+      }
+    }
+
+    const newApp = {
+      name: formData.get('name') as string,
+      email: formData.get('email') as string,
+      phone: formData.get('phone') as string,
+      position: formData.get('position') as string || selectedRole || 'General Application',
+      cover: formData.get('cover') as string,
+      fileName: fileName,
+      fileData: finalResumePayload,
+      date: new Date().toISOString()
+    };
+    
+    try {
+      await addApplication(newApp);
+      form.reset();
+      setFileName('');
+      setFileData(null);
+      setRawResumeFile(null);
+      setFileSize('');
+      refreshCaptcha();
+      showToast('Application submitted successfully! HR will review within 7 days.', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Submission error. Please try again or contact HR.', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const [selectedCategory, setSelectedCategory] = useState('all');
+
+  const jobCategories = [
+    { id: 'all', label: 'All Roles' },
+    { id: 'sales', label: 'Sales' },
+    { id: 'marketing', label: 'Marketing' },
+    { id: 'admin', label: 'Administration' },
+    { id: 'operations', label: 'FMCG & Operations' },
+    { id: 'interior', label: 'Interior' },
+    { id: 'jewellery', label: 'Jewellery' },
+  ];
+
+  const getJobCategoryBadge = (job: any) => {
+    const cat = (job.category || '').toLowerCase().trim();
+    const title = (job.title || '').toLowerCase().trim();
+
+    if (cat === 'marketing' || title.includes('marketing')) {
+      return 'Marketing';
+    }
+    if (cat === 'sales' || (!title.includes('marketing') && (title.includes('sales') || title.includes('hawker') || title.includes('rcma')))) {
+      return 'Sales';
+    }
+    if (job.category && job.category !== 'General') {
+      if (job.category === 'Interior') return 'Interior';
+      if (job.category === 'Jewellery') return 'Jewellery';
+      if (job.category === 'Operations' || job.category === 'FMCG') return 'FMCG & Operations';
+      return job.category;
+    }
+    const text = `${job.title} ${job.dept} ${job.desc || ''}`.toLowerCase();
+    if (text.includes('admin') || text.includes('hr') || text.includes('office')) return 'Administration';
+    if (text.includes('interior') || text.includes('kitchen')) return 'Interior';
+    if (text.includes('jewel') || text.includes('gold') || text.includes('stylo')) return 'Jewellery';
+    if (text.includes('fmcg') || text.includes('logistics') || text.includes('c&f') || text.includes('stockist') || text.includes('operations')) return 'FMCG & Operations';
+    return job.dept || 'Sales';
+  };
+
+  const getJobIcon = (job: any) => {
+    const cat = (job.category || '').toLowerCase().trim();
+    const title = (job.title || '').toLowerCase().trim();
+
+    if (cat === 'marketing' || title.includes('marketing')) {
+      return <Megaphone size={20} color="#ffd700" />;
+    }
+    if (cat === 'sales' || (!title.includes('marketing') && (title.includes('sales') || title.includes('hawker') || title.includes('rcma') || title.includes('promoter')))) {
+      return <TrendingUp size={20} color="#ffd700" />;
+    }
+    const text = `${job.title} ${job.category} ${job.dept} ${job.desc || ''}`.toLowerCase();
+    if (text.includes('admin') || text.includes('hr') || text.includes('office') || text.includes('coordinator')) {
+      return <UserCheck size={20} color="#ffd700" />;
+    }
+    if (text.includes('interior') || text.includes('modular') || text.includes('kitchen') || text.includes('site') || text.includes('jewel') || text.includes('gold')) {
+      return <Gem size={20} color="#ffd700" />;
+    }
+    if (text.includes('fmcg') || text.includes('operations') || text.includes('logistics') || text.includes('c&f') || text.includes('stockist')) {
+      return <Truck size={20} color="#ffd700" />;
+    }
+    return <Briefcase size={20} color="#ffd700" />;
+  };
+
+  // Filter jobs by category
+  const filteredJobs = jobs.filter((j: any) => {
+    if (selectedCategory === 'all') return true;
+    const cat = (j.category || '').toLowerCase().trim();
+    const title = (j.title || '').toLowerCase().trim();
+    const dept = (j.dept || '').toLowerCase().trim();
+
+    // Pure Marketing determination: category is marketing or title represents marketing
+    const isMarketingRole = 
+      cat === 'marketing' || 
+      title.includes('marketing') ||
+      dept === 'marketing';
+
+    // Pure Sales determination: category is sales or title represents sales, but strictly NOT a marketing role
+    const isSalesRole = 
+      !isMarketingRole && (
+        cat === 'sales' || 
+        title.includes('sales') || 
+        title.includes('hawker') || 
+        title.includes('rcma') || 
+        title.includes('promoter') || 
+        title.includes('bdm') ||
+        dept === 'sales'
+      );
+
+    if (selectedCategory === 'sales') {
+      // In Sales category, strictly showcase ONLY Sales jobs
+      return isSalesRole;
+    }
+    if (selectedCategory === 'marketing') {
+      // In Marketing category, strictly showcase ONLY Marketing jobs
+      return isMarketingRole;
+    }
+    if (selectedCategory === 'admin') {
+      return cat === 'administration' || cat.includes('admin') || title.includes('administrative') || title.includes('office') || title.includes('hr') || title.includes('coordinator');
+    }
+    if (selectedCategory === 'operations') {
+      return cat === 'fmcg & operations' || cat.includes('operations') || cat.includes('fmcg') || (!isSalesRole && !isMarketingRole && (title.includes('fmcg') || title.includes('logistics') || title.includes('c&f') || title.includes('stockist')));
+    }
+    if (selectedCategory === 'interior') {
+      return cat === 'interior' || cat.includes('interior') || title.includes('interior') || title.includes('modular') || title.includes('kitchen');
+    }
+    if (selectedCategory === 'jewellery') {
+      return cat === 'jewellery' || cat.includes('jewel') || title.includes('jewellery') || title.includes('stylo') || title.includes('gold');
+    }
+    return true;
+  });
+
+  return (
+    <PageWrapper>
+      <section className="section" style={{ paddingTop: '50px', paddingBottom: '80px', background: '#0a0d12' }}>
+        <div className="container" style={{ maxWidth: '1140px', margin: '0 auto' }}>
+          
+          {/* Breadcrumb Navigation */}
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{ textAlign: 'center', marginBottom: '24px', fontSize: '0.9rem', color: 'rgba(255,255,255,0.5)' }}
+          >
+            <Link to="/" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none' }}>{t('breadcrumbHome')}</Link>
+            <span style={{ margin: '0 8px', color: 'rgba(255,215,0,0.5)' }}>/</span>
+            <span style={{ color: '#ffd700', fontWeight: 600 }}>{t('breadcrumbCareers')}</span>
+          </motion.div>
+
+          {/* Hero Title Section */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            style={{ textAlign: 'center', marginBottom: '45px' }}
+          >
+            <h1 style={{ 
+              fontFamily: "'Playfair Display', serif", 
+              fontSize: 'clamp(2.2rem, 5vw, 3.8rem)', 
+              fontWeight: 700, 
+              color: '#ffffff',
+              lineHeight: 1.15,
+              letterSpacing: '-0.02em',
+              marginBottom: '16px'
+            }}>
+              {t('careersTitleLine1')} <span style={{ color: '#ffd700', textShadow: '0 0 25px rgba(255,215,0,0.25)' }}>{t('careersTitleLine2')}</span>
+            </h1>
+            <p style={{ 
+              color: 'rgba(255,255,255,0.75)', 
+              fontSize: 'clamp(1rem, 2vw, 1.2rem)', 
+              maxWidth: '780px', 
+              margin: '0 auto',
+              lineHeight: 1.6
+            }}>
+              {t('careersDesc')}
+            </p>
+          </motion.div>
+
+          {/* Current Openings Section matching Image Screenshot */}
+          <div style={{ 
+            background: 'linear-gradient(180deg, #10141d 0%, #0c0f17 100%)', 
+            border: '1px solid rgba(255,215,0,0.15)', 
+            borderRadius: '20px', 
+            padding: 'clamp(20px, 4vw, 40px)',
+            marginBottom: '60px',
+            boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
+            width: '100%',
+            boxSizing: 'border-box',
+            overflow: 'hidden'
+          }}>
+            {/* Section Header */}
+            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+              <div style={{ 
+                color: '#ffd700', 
+                fontSize: '0.82rem', 
+                fontWeight: 700, 
+                letterSpacing: '0.2em', 
+                textTransform: 'uppercase', 
+                marginBottom: '8px' 
+              }}>
+                JOIN OUR TEAM
+              </div>
+              <h2 style={{ 
+                fontFamily: "'Playfair Display', serif", 
+                fontSize: 'clamp(1.9rem, 4vw, 2.5rem)', 
+                fontWeight: 700, 
+                marginBottom: '12px',
+                lineHeight: 1.2
+              }}>
+                <span style={{ color: '#ffffff' }}>Current </span>
+                <span style={{ color: '#ffd700' }}>Openings</span>
+              </h2>
+              <p style={{ color: 'rgba(255,255,255,0.68)', fontSize: '0.94rem', maxWidth: '640px', margin: '0 auto', lineHeight: 1.6 }}>
+                Be a part of our growing team and work on meaningful projects. We are looking for talented individuals who are passionate, creative and driven to make an impact.
+              </p>
+            </div>
+
+            {/* Category Filter Chips */}
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              gap: '10px',
+              marginBottom: '36px'
+            }}>
+              {jobCategories.map((cat) => {
+                const isActive = selectedCategory === cat.id;
+                const isSales = cat.id === 'sales';
+                const isMarketing = cat.id === 'marketing';
+                const isAdmin = cat.id === 'admin';
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => {
+                      if (isSales) {
+                        navigate('/media?sector=all&sub=hawker_scheme');
+                      } else if (isMarketing) {
+                        navigate('/media?sector=all&sub=marketing_vacancy');
+                      } else if (isAdmin) {
+                        navigate('/media?sector=all&sub=business_development_vacancy');
+                      } else {
+                        setSelectedCategory(cat.id);
+                      }
+                    }}
+                    onDoubleClick={() => {
+                      setSelectedCategory(cat.id);
+                    }}
+                    onTouchStart={(e: any) => {
+                      if (isSales || isMarketing || isAdmin) {
+                        e.currentTarget._touchTimer = setTimeout(() => {
+                          setSelectedCategory(cat.id);
+                        }, 1500);
+                      }
+                    }}
+                    onTouchEnd={(e: any) => {
+                      if (e.currentTarget._touchTimer) {
+                        clearTimeout(e.currentTarget._touchTimer);
+                        e.currentTarget._touchTimer = null;
+                      }
+                    }}
+                    onMouseEnter={(e: any) => {
+                      if (isSales || isMarketing) {
+                        e.currentTarget._hoverTimer = setTimeout(() => {
+                          setSelectedCategory(cat.id);
+                        }, 2000);
+                      }
+                    }}
+                    onMouseLeave={(e: any) => {
+                      if (e.currentTarget._hoverTimer) {
+                        clearTimeout(e.currentTarget._hoverTimer);
+                        e.currentTarget._hoverTimer = null;
+                      }
+                    }}
+                    style={{
+                      padding: '8px 18px',
+                      borderRadius: '9999px',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: isActive ? '1px solid #ffd700' : '1px solid rgba(255,255,255,0.12)',
+                      background: isActive ? 'rgba(255,215,0,0.15)' : 'rgba(255,255,255,0.03)',
+                      color: isActive ? '#ffd700' : 'rgba(255,255,255,0.7)',
+                      boxShadow: isActive ? '0 0 16px rgba(255,215,0,0.25)' : 'none'
+                    }}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Jobs Cards Grid matching Screenshot */}
+            {filteredJobs.length > 0 ? (
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', 
+                gap: '24px',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}>
+                {filteredJobs.map((j: any) => {
+                  const categoryBadge = getJobCategoryBadge(j);
+                  return (
+                    <div
+                      key={j.id || j.title}
+                      style={{
+                        background: '#0c1017',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '16px',
+                        padding: 'clamp(20px, 3vw, 26px)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        minWidth: 0,
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+                      }}
+                    >
+                      {/* Top Glowing Accent Line */}
+                      <div style={{ 
+                        position: 'absolute', 
+                        top: 0, 
+                        left: 0, 
+                        right: 0, 
+                        height: '2.5px', 
+                        background: 'linear-gradient(90deg, transparent, #ffd700, transparent)',
+                        boxShadow: '0 0 10px rgba(255,215,0,0.5)'
+                      }} />
+
+                      <div>
+                        {/* Top Card Bar: Icon on Left, Category Tag on Right */}
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between',
+                          marginBottom: '18px'
+                        }}>
+                          <div style={{
+                            width: '44px',
+                            height: '44px',
+                            borderRadius: '12px',
+                            background: 'rgba(255,215,0,0.1)',
+                            border: '1px solid rgba(255,215,0,0.3)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            {getJobIcon(j)}
+                          </div>
+
+                          <div style={{
+                            padding: '4px 12px',
+                            borderRadius: '9999px',
+                            background: '#231a0e',
+                            border: '1px solid rgba(255,215,0,0.3)',
+                            color: '#ffd700',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            letterSpacing: '0.04em'
+                          }}>
+                            {categoryBadge}
+                          </div>
+                        </div>
+
+                        {/* Title matching font in screenshot */}
+                        <h3 style={{ 
+                          fontFamily: "'Playfair Display', serif", 
+                          color: '#ffffff', 
+                          fontSize: '1.25rem', 
+                          fontWeight: 700, 
+                          lineHeight: 1.35,
+                          marginBottom: '10px'
+                        }}>
+                          {j.title}
+                        </h3>
+
+                        {/* Description */}
+                        <p style={{ 
+                          color: 'rgba(255,255,255,0.65)', 
+                          fontSize: '0.88rem', 
+                          lineHeight: 1.55, 
+                          marginBottom: '20px',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 3,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          minHeight: '56px'
+                        }}>
+                          {j.desc}
+                        </p>
+
+                        {/* 4-Field Grid: Location, Type, Experience, Salary matching screenshot */}
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: '1fr 1fr', 
+                          gap: '12px 10px', 
+                          paddingTop: '16px',
+                          marginBottom: '20px',
+                          borderTop: '1px solid rgba(255,255,255,0.07)',
+                          fontSize: '0.82rem',
+                          color: 'rgba(255,255,255,0.78)'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                            <MapPin size={14} color="#ffd700" style={{ flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{j.loc || 'Durgapur, WB'}</span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                            <Briefcase size={14} color="#ffd700" style={{ flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{j.type || 'Full-time'}</span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                            <Award size={14} color="#ffd700" style={{ flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{j.exp || '1-3 years exp'}</span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ffd700', fontWeight: 600, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                            <IndianRupee size={14} color="#ffd700" style={{ flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{j.salary || 'Competitive CTC'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card Action Buttons matching screenshot */}
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: '1fr 1fr', 
+                        gap: '10px',
+                        paddingTop: '12px',
+                        borderTop: '1px solid rgba(255,255,255,0.06)'
+                      }}>
+
+
+                        <button
+                          onClick={() => setActiveModalJob(j)}
+                          style={{
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(255,215,0,0.35)',
+                            color: '#ffffff',
+                            padding: '10px 12px',
+                            borderRadius: '10px',
+                            fontSize: '0.82rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,215,0,0.1)'; e.currentTarget.style.borderColor = '#ffd700'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,215,0,0.35)'; }}
+                        >
+                          View Details <ChevronRight size={14} color="#ffd700" />
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setSelectedRole(j.title);
+                            document.getElementById('applyFormContainer')?.scrollIntoView({ behavior: 'smooth' });
+                          }}
+                          style={{
+                            background: 'linear-gradient(135deg, #ffd700 0%, #eab308 100%)',
+                            border: 'none',
+                            color: '#000000',
+                            padding: '10px 14px',
+                            borderRadius: '10px',
+                            fontSize: '0.84rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            boxShadow: '0 4px 15px rgba(255,215,0,0.25)',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(255,215,0,0.4)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(255,215,0,0.25)'; }}
+                        >
+                          Apply Now <Send size={13} color="#000" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{
+                textAlign: 'center',
+                padding: '48px 24px',
+                background: 'rgba(255,255,255,0.02)',
+                borderRadius: '16px',
+                border: '1px dashed rgba(255,215,0,0.25)'
+              }}>
+                <Briefcase size={36} color="#ffd700" style={{ margin: '0 auto 16px auto', opacity: 0.8 }} />
+                <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '8px' }}>
+                  {jobs.length === 0 ? 'No Current Vacancies Listed' : 'No Openings in this Category'}
+                </h3>
+                <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.9rem', maxWidth: '520px', margin: '0 auto 20px auto', lineHeight: 1.6 }}>
+                  {jobs.length === 0 
+                    ? 'We do not have specific open positions listed at the moment. However, we are always looking for ambitious talent! Feel free to submit your general resume below.'
+                    : 'Try selecting "All Positions" or submit your CV below for future opportunities.'}
+                </p>
+                <button
+                  onClick={() => {
+                    setSelectedCategory('all');
+                    document.getElementById('applyFormContainer')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  style={{
+                    background: 'rgba(255,215,0,0.12)',
+                    color: '#ffd700',
+                    border: '1px solid rgba(255,215,0,0.3)',
+                    padding: '8px 20px',
+                    borderRadius: '20px',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Submit General Application ↓
+                </button>
+              </div>
+            )}
+
+            {/* Bottom decorative slogan banner matching screenshot */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '16px',
+              marginTop: '44px',
+              paddingTop: '28px',
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              color: '#ffd700',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase'
+            }}>
+              <div style={{ height: '1px', flex: 1, maxWidth: '120px', background: 'linear-gradient(90deg, transparent, rgba(255,215,0,0.4))' }} />
+              <span>LET'S BUILD A BRIGHTER TOMORROW TOGETHER</span>
+              <div style={{ height: '1px', flex: 1, maxWidth: '120px', background: 'linear-gradient(90deg, rgba(255,215,0,0.4), transparent)' }} />
+            </div>
+          </div>
+
+          {/* Submit Your CV Form Container matching Screenshot 3 */}
+          <div id="applyFormContainer" style={{ scrollMarginTop: '100px', marginBottom: '60px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+              <div style={{ 
+                color: '#ffd700', 
+                fontSize: '0.82rem', 
+                fontWeight: 700, 
+                letterSpacing: '0.15em', 
+                textTransform: 'uppercase', 
+                marginBottom: '8px' 
+              }}>
+                {t('joinUs')}
+              </div>
+              <h2 style={{ 
+                fontFamily: "'Playfair Display', serif", 
+                color: '#ffffff', 
+                fontSize: '2.5rem', 
+                fontWeight: 700 
+              }}>
+                {t('submitCVTitle')}
+              </h2>
+            </div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              style={{
+                maxWidth: '680px',
+                margin: '0 auto',
+                background: '#12151c',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '16px',
+                padding: '36px 32px',
+                boxShadow: '0 25px 60px rgba(0,0,0,0.5)'
+              }}
+            >
+              <form onSubmit={submitApplication}>
+                
+                {/* Full Name */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem', fontWeight: 500, marginBottom: '8px' }}>
+                    {t('fullNameLabel')} <span style={{ color: '#ffd700' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    required
+                    placeholder={t('careersNamePlaceholder')}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(0,0,0,0.4)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: '8px',
+                      padding: '12px 16px',
+                      color: '#ffffff',
+                      fontSize: '0.95rem',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                {/* Email */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem', fontWeight: 500, marginBottom: '8px' }}>
+                    {t('emailLabel')} <span style={{ color: '#ffd700' }}>*</span>
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    required
+                    placeholder={t('careersEmailPlaceholder')}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(0,0,0,0.4)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: '8px',
+                      padding: '12px 16px',
+                      color: '#ffffff',
+                      fontSize: '0.95rem',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                {/* Phone / WhatsApp */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem', fontWeight: 500, marginBottom: '8px' }}>
+                    {t('phoneLabel')} <span style={{ color: '#ffd700' }}>*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    required
+                    placeholder={t('careersPhonePlaceholder')}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(0,0,0,0.4)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: '8px',
+                      padding: '12px 16px',
+                      color: '#ffffff',
+                      fontSize: '0.95rem',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                {/* Position Interested In */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem', fontWeight: 500, marginBottom: '8px' }}>
+                    {t('positionLabel')} <span style={{ color: '#ffd700' }}>*</span>
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      name="position"
+                      value={selectedRole}
+                      onChange={e => setSelectedRole(e.target.value)}
+                      required
+                      style={{
+                        width: '100%',
+                        background: 'rgba(0,0,0,0.6)',
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        borderRadius: '8px',
+                        padding: '12px 16px',
+                        color: '#ffffff',
+                        fontSize: '0.95rem',
+                        appearance: 'none',
+                        outline: 'none',
+                        cursor: 'pointer',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      <option value="" style={{ background: '#12151c' }}>{t('selectPosition')}</option>
+                      {jobs.map((j: any) => (
+                        <option key={j.id || j.title} value={j.title} style={{ background: '#12151c' }}>
+                          {j.title} ({j.type || t('fullTime')})
+                        </option>
+                      ))}
+                      <option value="General Application" style={{ background: '#12151c' }}>{t('generalApplication')}</option>
+                    </select>
+                    <ChevronDown size={18} color="rgba(255,255,255,0.5)" style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  </div>
+                </div>
+
+                {/* Upload CV Dropzone matching Screenshot 3 */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem', fontWeight: 500, marginBottom: '8px' }}>
+                    {t('uploadCVLabel')} <span style={{ color: '#ffd700' }}>*</span>
+                  </label>
+                  
+                  <div
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      background: dragActive ? 'rgba(255,215,0,0.08)' : 'rgba(0,0,0,0.3)',
+                      border: dragActive ? '2px dashed #ffd700' : '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: '8px',
+                      padding: '20px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      transition: 'all 0.25s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '14px'
+                    }}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      onChange={handleFileSelect}
+                      style={{ display: 'none' }}
+                    />
+
+                    <div style={{ 
+                      background: 'rgba(255,215,0,0.1)', 
+                      padding: '10px 14px', 
+                      borderRadius: '6px', 
+                      border: '1px solid rgba(255,215,0,0.3)',
+                      color: '#ffd700',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {t('chooseFile')}
+                    </div>
+
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                      {fileName ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <CheckCircle2 size={18} color="#10b981" />
+                          <span style={{ color: '#10b981', fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {fileName}
+                          </span>
+                          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem' }}>({fileSize})</span>
+                        </div>
+                      ) : (
+                        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>
+                          {t('noFileChosen')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message (optional) */}
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem', fontWeight: 500, marginBottom: '8px' }}>
+                    {t('messageOptionalLabel')}
+                  </label>
+                  <textarea
+                    name="cover"
+                    rows={3}
+                    placeholder={t('tellUsExperience')}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(0,0,0,0.4)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: '8px',
+                      padding: '12px 16px',
+                      color: '#ffffff',
+                      fontSize: '0.95rem',
+                      outline: 'none',
+                      resize: 'vertical',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                {/* Security Verification CAPTCHA Widget */}
+                <div style={{ 
+                  marginBottom: '28px',
+                  background: 'rgba(255,215,0,0.04)',
+                  border: captchaError ? '1px solid #ef4444' : '1px solid rgba(255,215,0,0.25)',
+                  borderRadius: '12px',
+                  padding: '18px 20px',
+                  transition: 'all 0.2s ease'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ffd700', fontSize: '0.88rem', fontWeight: 700, margin: 0 }}>
+                      <ShieldCheck size={18} color="#ffd700" />
+                      Security Verification (CAPTCHA) <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>Anti-Bot Spam Protection</span>
+                  </div>
+
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr)) auto 1fr', 
+                    gap: '12px', 
+                    alignItems: 'center' 
+                  }}>
+                    {/* Visual Captcha Display Box */}
+                    <div 
+                      style={{
+                        background: 'linear-gradient(135deg, #1c1917 0%, #0c0a09 100%)',
+                        border: '1px solid rgba(255,215,0,0.4)',
+                        borderRadius: '8px',
+                        padding: '8px 12px',
+                        textAlign: 'center',
+                        userSelect: 'none',
+                        letterSpacing: '7px',
+                        fontFamily: "'Courier New', Courier, monospace",
+                        fontSize: '1.25rem',
+                        fontWeight: 900,
+                        color: '#ffd700',
+                        textShadow: '0 0 10px rgba(255,215,0,0.4)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        height: '46px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5)'
+                      }}
+                      title="Security CAPTCHA Challenge"
+                    >
+                      {/* Stylized background lines for human verification */}
+                      <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(255,215,0,0.06) 8px, rgba(255,215,0,0.06) 16px)',
+                        pointerEvents: 'none'
+                      }} />
+                      <span style={{ position: 'relative', zIndex: 1, transform: 'skew(-4deg)' }}>
+                        {captchaCode}
+                      </span>
+                    </div>
+
+                    {/* Reload / Refresh Button */}
+                    <button
+                      type="button"
+                      onClick={refreshCaptcha}
+                      style={{
+                        height: '46px',
+                        width: '44px',
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.18)',
+                        borderRadius: '8px',
+                        color: '#ffd700',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s ease',
+                        flexShrink: 0
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,215,0,0.15)'; e.currentTarget.style.borderColor = '#ffd700'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'; }}
+                      title="Generate new CAPTCHA code"
+                    >
+                      <RefreshCw size={18} />
+                    </button>
+
+                    {/* Candidate Input Field */}
+                    <input
+                      type="text"
+                      placeholder="Enter the 5 characters"
+                      value={captchaInput}
+                      onChange={(e) => {
+                        setCaptchaInput(e.target.value.toUpperCase());
+                        if (captchaError) setCaptchaError(false);
+                      }}
+                      required
+                      maxLength={6}
+                      style={{
+                        height: '46px',
+                        background: 'rgba(0,0,0,0.6)',
+                        border: captchaError ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.18)',
+                        borderRadius: '8px',
+                        padding: '0 14px',
+                        color: '#ffffff',
+                        fontSize: '0.95rem',
+                        fontWeight: 600,
+                        letterSpacing: '2px',
+                        textTransform: 'uppercase',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                        width: '100%',
+                        minWidth: '130px'
+                      }}
+                    />
+                  </div>
+                  {captchaError && (
+                    <div style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>⚠️ Invalid CAPTCHA code. Please enter the exact characters displayed.</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Golden Submit Button matching Screenshot 3 */}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(135deg, #d4af37, #eab308)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '14px 20px',
+                    color: '#000000',
+                    fontSize: '0.92rem',
+                    fontWeight: 800,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    cursor: isSubmitting ? 'wait' : 'pointer',
+                    boxShadow: '0 8px 25px rgba(212,175,55,0.3)',
+                    transition: 'all 0.25s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justify: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  {isSubmitting ? (
+                    t('careersSubmittingBtn')
+                  ) : (
+                    <>
+                      {t('careersSubmitBtn')} <ArrowRight size={18} />
+                    </>
+                  )}
+                </button>
+              </form>
+            </motion.div>
+          </div>
+
+          {/* Candidate Terms & Conditions / Guidelines matching Screenshot 4 */}
+          <div style={{ maxWidth: '820px', margin: '0 auto 60px auto' }}>
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <div style={{ 
+                color: '#ffd700', 
+                fontSize: '0.82rem', 
+                fontWeight: 700, 
+                letterSpacing: '0.15em', 
+                textTransform: 'uppercase', 
+                marginBottom: '8px' 
+              }}>
+                {t('guidelinesEyebrow')}
+              </div>
+              <h2 style={{ 
+                fontFamily: "'Playfair Display', serif", 
+                color: '#ffffff', 
+                fontSize: '2.2rem', 
+                fontWeight: 700 
+              }}>
+                {t('termsHeading')}
+              </h2>
+            </div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              style={{
+                background: '#12151c',
+                border: '1px dashed rgba(255,215,0,0.35)',
+                borderRadius: '16px',
+                padding: '36px 32px',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+              }}
+            >
+              <ul style={{ 
+                color: 'rgba(255,255,255,0.82)', 
+                fontSize: '0.95rem', 
+                lineHeight: 1.7, 
+                paddingLeft: '20px',
+                margin: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                <li>{t('termBullet1')}</li>
+                <li>{t('termBullet2')}</li>
+                <li>{t('termBullet3')}</li>
+                <li>{t('termBullet4')}</li>
+                <li>{t('termBullet5')}</li>
+                <li>{t('termBullet6')}</li>
+                <li>{t('termBullet7')}</li>
+              </ul>
+
+              <p style={{ 
+                marginTop: '28px', 
+                color: 'rgba(255,255,255,0.5)', 
+                fontSize: '0.88rem', 
+                fontStyle: 'italic',
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+                paddingTop: '16px',
+                margin: '24px 0 0 0'
+              }}>
+                {t('termsAgreeNote')}
+              </p>
+            </motion.div>
+          </div>
+
+          {/* Culture & Employee Benefits Section */}
+          <div style={{ marginTop: '70px', marginBottom: '50px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+              <div style={{ color: '#ffd700', fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '8px' }}>
+                {t('perksEyebrow')}
+              </div>
+              <h2 style={{ fontFamily: "'Playfair Display', serif", color: '#ffffff', fontSize: '2.2rem', fontWeight: 700 }}>
+                {t('whyJoinHeading')}
+              </h2>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '20px', width: '100%', boxSizing: 'border-box' }}>
+              <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '24px' }}>
+                <div style={{ color: '#ffd700', marginBottom: '12px' }}><TrendingUp size={28} /></div>
+                <h4 style={{ color: '#ffffff', fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>{t('perk1Title')}</h4>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.88rem', lineHeight: 1.5 }}>
+                  {t('perk1Desc')}
+                </p>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '24px' }}>
+                <div style={{ color: '#ffd700', marginBottom: '12px' }}><IndianRupee size={28} /></div>
+                <h4 style={{ color: '#ffffff', fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>{t('perk2Title')}</h4>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.88rem', lineHeight: 1.5 }}>
+                  {t('perk2Desc')}
+                </p>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '24px' }}>
+                <div style={{ color: '#ffd700', marginBottom: '12px' }}><ShieldCheck size={28} /></div>
+                <h4 style={{ color: '#ffffff', fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>{t('perk3Title')}</h4>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.88rem', lineHeight: 1.5 }}>
+                  {t('perk3Desc')}
+                </p>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '24px' }}>
+                <div style={{ color: '#ffd700', marginBottom: '12px' }}><Award size={28} /></div>
+                <h4 style={{ color: '#ffffff', fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>{t('perk4Title')}</h4>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.88rem', lineHeight: 1.5 }}>
+                  {t('perk4Desc')}
+                </p>
+              </div>
+            </div>
+
+            {/* Comprehensive Training Page Showcase Banner */}
+            <div style={{
+              marginTop: '28px',
+              background: 'linear-gradient(135deg, rgba(255,215,0,0.12) 0%, rgba(18,21,28,0.95) 100%)',
+              border: '1px solid rgba(255,215,0,0.35)',
+              borderRadius: '16px',
+              padding: '24px 28px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '18px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ background: '#ffd700', color: '#000', padding: '12px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Award size={26} />
+                </div>
+                <div>
+                  <h3 style={{ color: '#ffffff', fontSize: '1.15rem', fontWeight: 800, margin: '0 0 4px 0' }}>
+                    Full Corporate Training &amp; 12-Item Starter Kit
+                  </h3>
+                  <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.88rem', margin: 0 }}>
+                    Uniforms, brochures, canopies, CRM software, Sunday first-half masterclasses, and transparent remuneration policies.
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                to="/training"
+                style={{
+                  background: 'linear-gradient(135deg, #ffd700 0%, #eab308 100%)',
+                  color: '#000000',
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  fontWeight: 800,
+                  fontSize: '0.86rem',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 4px 15px rgba(255,215,0,0.25)',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Explore Training Program <ArrowRight size={15} />
+              </Link>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* Role Details Modal Popup */}
+      <AnimatePresence>
+        {activeModalJob && (() => {
+          const parsed = parseJobDetails(activeModalJob);
+          return (
+            <div 
+              onClick={() => setActiveModalJob(null)}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.85)',
+                backdropFilter: 'blur(8px)',
+                zIndex: 9999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '16px'
+              }}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.94, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.94, y: 15 }}
+                transition={{ duration: 0.2 }}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: 'linear-gradient(180deg, #121620 0%, #0a0d14 100%)',
+                  border: '1px solid rgba(255,215,0,0.35)',
+                  borderRadius: '20px',
+                  padding: '28px 32px',
+                  maxWidth: '720px',
+                  width: '100%',
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                  position: 'relative',
+                  boxShadow: '0 25px 80px rgba(0,0,0,0.85), 0 0 35px rgba(255,215,0,0.06)'
+                }}
+              >
+                {/* Close Button */}
+                <button
+                  onClick={() => setActiveModalJob(null)}
+                  style={{
+                    position: 'absolute',
+                    top: '20px',
+                    right: '20px',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    color: 'rgba(255,255,255,0.7)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    zIndex: 2
+                  }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.background = 'rgba(255,215,0,0.15)'; 
+                    e.currentTarget.style.borderColor = '#ffd700'; 
+                    e.currentTarget.style.color = '#ffd700'; 
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; 
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; 
+                    e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; 
+                  }}
+                  aria-label="Close"
+                >
+                  <X size={18} />
+                </button>
+
+                {/* Header Category & Status Bar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '14px', paddingRight: '44px' }}>
+                  <div style={{
+                    color: '#ffd700',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.12em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <Sparkles size={13} color="#ffd700" />
+                    {t('positionDetails')}
+                  </div>
+
+                  <div style={{
+                    padding: '3px 12px',
+                    borderRadius: '9999px',
+                    background: 'rgba(255,215,0,0.12)',
+                    border: '1px solid rgba(255,215,0,0.35)',
+                    color: '#ffd700',
+                    fontSize: '0.78rem',
+                    fontWeight: 700
+                  }}>
+                    {getJobCategoryBadge(activeModalJob)}
+                  </div>
+
+                  <div style={{
+                    padding: '3px 10px',
+                    borderRadius: '9999px',
+                    background: 'rgba(34,197,94,0.12)',
+                    border: '1px solid rgba(34,197,94,0.3)',
+                    color: '#4ade80',
+                    fontSize: '0.74rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4ade80', display: 'inline-block' }} />
+                    Actively Hiring
+                  </div>
+                </div>
+
+                {/* Job Title */}
+                <h2 style={{
+                  fontFamily: "'Playfair Display', serif",
+                  color: '#ffffff',
+                  fontSize: '1.75rem',
+                  fontWeight: 700,
+                  lineHeight: 1.3,
+                  marginBottom: '16px'
+                }}>
+                  {activeModalJob.title}
+                </h2>
+
+                {/* Key Specifications Grid */}
+                <div style={{ marginBottom: '22px' }}>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                    gap: '10px',
+                    marginBottom: '10px'
+                  }}>
+
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ffd700', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+                        <MapPin size={13} /> {t('locLabel') || 'Location'}
+                      </div>
+                      <div style={{ color: '#ffffff', fontSize: '0.88rem', fontWeight: 600 }}>
+                        {activeModalJob.loc || 'Bengal & Region'}
+                      </div>
+                    </div>
+
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ffd700', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+                        <Clock size={13} /> {t('empLabel') || 'Type'}
+                      </div>
+                      <div style={{ color: '#ffffff', fontSize: '0.88rem', fontWeight: 600 }}>
+                        {activeModalJob.type || 'Full-time'}
+                      </div>
+                    </div>
+
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ffd700', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+                        <TrendingUp size={13} /> {t('expLabel') || 'Experience'}
+                      </div>
+                      <div style={{ color: '#ffffff', fontSize: '0.88rem', fontWeight: 600 }}>
+                        {activeModalJob.exp || 'Freshers / Exp'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Compensation Highlight */}
+                  {activeModalJob.salary && (
+                    <div style={{
+                      background: 'linear-gradient(135deg, rgba(255,215,0,0.09) 0%, rgba(255,215,0,0.02) 100%)',
+                      border: '1px solid rgba(255,215,0,0.3)',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}>
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
+                        background: 'rgba(255,215,0,0.15)',
+                        border: '1px solid rgba(255,215,0,0.4)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <IndianRupee size={16} color="#ffd700" />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ color: '#ffd700', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>
+                          Compensation / Salary Details
+                        </div>
+                        <div style={{ color: '#ffffff', fontSize: '0.9rem', fontWeight: 600, lineHeight: 1.5 }}>
+                          {activeModalJob.salary}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Role Overview Paragraph */}
+                {parsed.intro && (
+                  <div style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    borderLeft: '3px solid #ffd700',
+                    borderRadius: '0 12px 12px 0',
+                    padding: '14px 18px',
+                    marginBottom: '20px',
+                    color: 'rgba(255,255,255,0.92)',
+                    fontSize: '0.94rem',
+                    lineHeight: 1.65
+                  }}>
+                    {parsed.intro}
+                  </div>
+                )}
+
+                {/* Key Responsibilities */}
+                {parsed.responsibilities.length > 0 && (
+                  <div style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '14px',
+                    padding: '18px 20px',
+                    marginBottom: '18px'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: '#ffd700',
+                      fontSize: '0.95rem',
+                      fontWeight: 700,
+                      marginBottom: '14px'
+                    }}>
+                      <CheckCircle2 size={17} color="#ffd700" />
+                      Key Responsibilities
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {parsed.responsibilities.map((resp, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)', lineHeight: 1.55 }}>
+                          <span style={{ color: '#ffd700', fontWeight: 700, lineHeight: 1.2, marginTop: '2px' }}>•</span>
+                          <span>{resp}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Candidate Requirements */}
+                {parsed.requirements.length > 0 && (
+                  <div style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '14px',
+                    padding: '18px 20px',
+                    marginBottom: '18px'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: '#ffd700',
+                      fontSize: '0.95rem',
+                      fontWeight: 700,
+                      marginBottom: '14px'
+                    }}>
+                      <UserCheck size={17} color="#ffd700" />
+                      Candidate Requirements & Eligibility
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {parsed.requirements.map((req, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)', lineHeight: 1.55 }}>
+                          <span style={{ color: '#ffd700', fontWeight: 700, lineHeight: 1.2, marginTop: '2px' }}>•</span>
+                          <span>{req}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recruiter & Company Contact Desk */}
+                {(parsed.contactPhone || parsed.company) && (
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(255,215,0,0.08) 0%, rgba(255,215,0,0.02) 100%)',
+                    border: '1px solid rgba(255,215,0,0.25)',
+                    borderRadius: '14px',
+                    padding: '16px 20px',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}>
+                    <div>
+                      <div style={{ color: '#ffd700', fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        Official Hiring Desk
+                      </div>
+                      <div style={{ color: '#ffffff', fontSize: '0.94rem', fontWeight: 700, marginTop: '2px' }}>
+                        {parsed.company}
+                      </div>
+                      {parsed.contactRaw && (
+                        <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.82rem', marginTop: '2px' }}>
+                          {parsed.contactRaw}
+                        </div>
+                      )}
+                    </div>
+                    {parsed.contactPhone && (
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <a
+                          href={'tel:' + parsed.contactPhone}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'rgba(255,215,0,0.15)',
+                            border: '1px solid rgba(255,215,0,0.4)',
+                            color: '#ffd700',
+                            padding: '8px 16px',
+                            borderRadius: '8px',
+                            fontSize: '0.84rem',
+                            fontWeight: 700,
+                            textDecoration: 'none',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <Phone size={14} /> Call {parsed.contactPhone}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Extra Notes if any */}
+                {parsed.extraNotes.length > 0 && (
+                  <div style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: '12px',
+                    padding: '14px 18px',
+                    marginBottom: '18px',
+                    fontSize: '0.86rem',
+                    color: 'rgba(255,255,255,0.8)',
+                    lineHeight: 1.6,
+                    whiteSpace: 'pre-line'
+                  }}>
+                    {parsed.extraNotes.join('\n')}
+                  </div>
+                )}
+
+                {/* Fallback Role Guidelines if no specific responsibilities/requirements */}
+                {parsed.responsibilities.length === 0 && parsed.requirements.length === 0 && (
+                  <div style={{ marginBottom: '22px' }}>
+                    <h4 style={{ color: '#ffffff', fontSize: '0.95rem', fontWeight: 700, marginBottom: '10px' }}>{t('roleGuidelinesHeader')}</h4>
+                    <ul style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.88rem', lineHeight: 1.6, paddingLeft: '18px', margin: 0 }}>
+                      <li>{t('roleReq1')}</li>
+                      <li>{t('roleReq2')}</li>
+                      <li>{t('roleReq3')}</li>
+                      <li>{t('roleReq4')}</li>
+                    </ul>
+                  </div>
+                )}
+
+                {/* Action Footer */}
+                <div style={{
+                  display: 'flex',
+                  gap: '12px',
+                  justifyContent: 'flex-end',
+                  paddingTop: '20px',
+                  borderTop: '1px solid rgba(255,255,255,0.08)',
+                  marginTop: '24px'
+                }}>
+                  <button
+                    onClick={() => setActiveModalJob(null)}
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      color: '#ffffff',
+                      padding: '10px 22px',
+                      borderRadius: '10px',
+                      fontWeight: 600,
+                      fontSize: '0.88rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                  >
+                    {t('btnClose')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedRole(activeModalJob.title);
+                      setActiveModalJob(null);
+                      document.getElementById('applyFormContainer')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    style={{
+                      background: 'linear-gradient(135deg, #ffd700, #eab308)',
+                      border: 'none',
+                      color: '#000000',
+                      padding: '10px 26px',
+                      borderRadius: '10px',
+                      fontWeight: 800,
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      boxShadow: '0 4px 20px rgba(255,215,0,0.35)',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 25px rgba(255,215,0,0.5)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(255,215,0,0.35)'; }}
+                  >
+                    <span>{t('careersApplyNow')}</span>
+                    <Send size={15} color="#000" />
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
+      </AnimatePresence>
+    </PageWrapper>
+  );
+};
+
+export const Media = () => {
+  const { mediaItems, playVideo, openZoomGallery, showToast } = useStore();
+  const { t } = useLanguage();
+  
+  // Primary Sector / Type Filter
+  const [filter, setFilter] = useState<string>('all');
+  
+  // Product-specific Sub-Filter
+  const [productSubFilter, setProductSubFilter] = useState<string>('chanachur');
+  
+  // Search query
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const sParam = params.get('sector');
+    const subParam = params.get('sub');
+    if (sParam !== null) setFilter(sParam);
+    if (subParam !== null) setProductSubFilter(subParam);
+  }, [location.search]);
+
+  const getEncodedUrl = (url: string) => {
+    if (!url) return '';
+    return url.startsWith('/assets/') ? encodeURI(url) : url;
+  };
+
+  const getFallbackSvg = (title: string) => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+      <rect width="800" height="600" fill="#111827"/>
+      <rect x="20" y="20" width="760" height="560" rx="12" fill="none" stroke="#d4af37" stroke-width="2" stroke-dasharray="6 6" opacity="0.5"/>
+      <circle cx="400" cy="240" r="48" fill="rgba(212,175,55,0.1)" stroke="#d4af37" stroke-width="2"/>
+      <path d="M380 240 h40 M400 220 v40" stroke="#d4af37" stroke-width="3" stroke-linecap="round"/>
+      <text x="50%" y="360" dominant-baseline="middle" text-anchor="middle" fill="#f3f4f6" font-family="sans-serif" font-size="24" font-weight="bold">${title.replace(/&/g, '&amp;')}</text>
+      <text x="50%" y="410" dominant-baseline="middle" text-anchor="middle" fill="#d4af37" font-family="sans-serif" font-size="18">Sarkar Enterprise Official Media Asset</text>
+    </svg>`;
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  };
+
+  // Dynamically map all media assets directly from Admin Panel / Store State (mediaItems)
+  const sourceMedia = mediaItems || [];
+
+  // Extract all video URLs and video thumbs so thumbnails are never duplicated as standalone photos
+  const videoUrls = new Set<string>();
+  const videoThumbs = new Set<string>();
+  sourceMedia.forEach((m: any) => {
+    if (m.type === 'video') {
+      if (m.url) videoUrls.add(String(m.url).trim().toLowerCase());
+      if (m.thumb) videoThumbs.add(String(m.thumb).trim().toLowerCase());
+    }
+  });
+
+  // Deduplicate visuals and ensure video thumbnails never appear in the photos gallery
+  const seenVisualUrls = new Set<string>();
+  const allVisuals = (sourceMedia.filter((m: any) => {
+    if (m.type !== 'photo' && m.type !== 'image') return false;
+    if (!m.url) return false;
+    const cleanUrl = String(m.url).trim().toLowerCase();
+    // Exclude if it is a video URL or a video thumbnail poster
+    if (videoUrls.has(cleanUrl) || videoThumbs.has(cleanUrl)) return false;
+    // Exclude if title mentions thumbnail
+    if (/thumbnail|video_thumb|poster/i.test(m.title || '')) return false;
+    // Deduplicate by URL
+    if (seenVisualUrls.has(cleanUrl)) return false;
+    seenVisualUrls.add(cleanUrl);
+    return true;
+  }) || []).map((m: any) => ({
+    id: m.id || `va-${Math.random()}`,
+    type: 'photo',
+    title: m.title || 'Media Asset',
+    url: m.url,
+    sector: m.sector || 'fmcg',
+    productSub: m.productSub || (m.sector === 'jewellery' ? 'jewellery_scheme' : m.sector === 'interior' ? 'modular_kitchen' : 'all_sub'),
+    productLabel: m.productLabel || (
+      m.sector === 'jewellery' ? 'Jewellery Sector' :
+      m.sector === 'interior' ? 'Interior Project' :
+      m.sector === 'credentials' ? 'Certificate' :
+      m.sector === 'company' ? 'Enterprise' : 'FMCG Product'
+    ),
+    tags: Array.isArray(m.tags) ? m.tags : [m.title || 'photo']
+  }));
+
+  const allAudios = (sourceMedia.filter((m: any) => m.type === 'audio') || []).map((m: any) => ({
+    id: m.id || `ac-${Math.random()}`,
+    type: 'audio',
+    title: m.title || 'Audio Campaign Track',
+    desc: m.desc || 'Audio spot',
+    url: m.url,
+    fallbackUrl: m.url,
+    sector: m.sector || 'fmcg',
+    productSub: m.productSub || m.subCategory || 'all_sub',
+    productLabel: m.productLabel || 'Audio Spot',
+    tags: Array.isArray(m.tags) ? m.tags : [m.title || 'audio']
+  }));
+
+  const allVideos = (sourceMedia.filter((m: any) => m.type === 'video') || []).map((m: any) => ({
+    id: m.id || `vh-${Math.random()}`,
+    type: 'video',
+    title: m.title || 'Video Commercial',
+    desc: m.desc || 'Video clip',
+    thumb: m.thumb || m.url,
+    url: m.url,
+    sector: m.sector || 'company',
+    productSub: m.productSub || (m.sector === 'jewellery' ? 'jewellery_scheme' : m.sector === 'interior' ? 'modular_kitchen' : 'video_films'),
+    productLabel: m.productLabel || (
+      m.sector === 'jewellery' ? 'Jewellery Sector Film' :
+      m.sector === 'interior' ? 'Interior Showcase Film' :
+      'Corporate & Product Film'
+    ),
+    tags: Array.isArray(m.tags) ? m.tags : [m.title || 'video']
+  }));
+
+  const allCredentials = (sourceMedia.filter((m: any) => m.type === 'credential') || []).map((m: any) => ({
+    id: m.id || `cred-${Math.random()}`,
+    type: 'credential',
+    title: m.title || 'Official Certificate Document',
+    desc: m.desc || 'Official credential document',
+    url: m.url,
+    sector: m.sector || 'credentials',
+    productSub: m.productSub || m.subCategory || 'certificates',
+    productLabel: m.productLabel || 'Certificate',
+    tags: Array.isArray(m.tags) ? m.tags : [m.title || 'credential']
+  }));
+
+  // Helper matching function for filter criteria
+  const isMatch = (item: any) => {
+    // 1. Primary Sector / Type Filter
+    let effectiveFilter = filter;
+    if (effectiveFilter === 'all' && productSubFilter) {
+      if (['chanachur', 'confectionery', 'incense', 'repellent', 'fmcg_distribution', 'hawker_scheme', 'marketing_vacancy', 'business_development_vacancy'].includes(productSubFilter)) {
+        effectiveFilter = 'fmcg';
+      } else if (['jewellery_scheme'].includes(productSubFilter)) {
+        effectiveFilter = 'jewellery';
+      } else if (['corporate_outlet', 'plywood_corporate', 'commercial_interior', 'modular_kitchen', 'turnover_tieup'].includes(productSubFilter)) {
+        effectiveFilter = 'interior';
+      }
+    }
+
+    if (effectiveFilter === 'fmcg' && item.sector !== 'fmcg') return false;
+    if (effectiveFilter === 'jewellery' && item.sector !== 'jewellery') return false;
+    if (effectiveFilter === 'interior' && item.sector !== 'interior') return false;
+    if (effectiveFilter === 'company' && item.sector !== 'company') return false;
+    if (effectiveFilter === 'credentials' && item.sector !== 'credentials' && item.type !== 'credential') return false;
+
+    // 2. Product & Section Sub-Filter
+    if (productSubFilter !== 'all_sub') {
+      if (productSubFilter === 'audio_jingles') {
+        if (item.type !== 'audio') return false;
+      } else if (productSubFilter === 'video_films') {
+        if (item.type !== 'video') return false;
+      } else if (productSubFilter === 'certificates') {
+        if (item.type !== 'credential' && item.productSub !== 'certificates' && item.sector !== 'credentials') return false;
+      } else {
+        // If a specific subfilter like 'chanachur' or 'mosquito' is selected, match productSub or tags
+        const sub = (item.productSub || '').toLowerCase();
+        const matchesSub = sub === productSubFilter.toLowerCase() || (sub === 'all_sub' && filter === 'all');
+        const matchesTag = Array.isArray(item.tags) && item.tags.some((t: string) => t.toLowerCase() === productSubFilter.toLowerCase());
+        if (!matchesSub && !matchesTag) return false;
+      }
+    }
+
+    // 3. Search Query Text Match
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase().trim();
+      const titleMatch = item.title?.toLowerCase().includes(q);
+      const descMatch = item.desc?.toLowerCase().includes(q);
+      const labelMatch = item.productLabel?.toLowerCase().includes(q);
+      const tagsMatch = item.tags?.some((t: string) => t.toLowerCase().includes(q));
+      if (!titleMatch && !descMatch && !labelMatch && !tagsMatch) return false;
+    }
+
+    return true;
+  };
+
+  // Filtered lists
+  const filteredVisuals = allVisuals.filter(isMatch);
+  const filteredAudios = allAudios.filter(isMatch);
+  const filteredVideos = allVideos.filter(isMatch);
+  const filteredCredentials = allCredentials.filter(isMatch);
+
+  const totalFilteredCount = 
+    filteredVisuals.length + 
+    filteredAudios.length + 
+    filteredVideos.length + 
+    filteredCredentials.length;
+
+  const subFilterBarRef = useRef<HTMLDivElement>(null);
+
+  const subFilterOptions = [
+    { key: 'chanachur', label: t('mediaSubfilterChanachur'), icon: '🌶️', count: allVisuals.filter(v => v.productSub === 'chanachur').length },
+    { key: 'mosquito', label: t('mediaSubfilterMosquito'), icon: '🦟', count: allVisuals.filter(v => v.productSub === 'mosquito').length + allAudios.filter(a => a.productSub === 'mosquito').length },
+    { key: 'soan_papdi', label: t('mediaSubfilterSoanPapdi'), icon: '🍬', count: allVisuals.filter(v => v.productSub === 'soan_papdi').length },
+    { key: 'hawker_scheme', label: t('mediaSubfilterHawker'), icon: '📜', count: allVisuals.filter(v => v.productSub === 'hawker_scheme').length },
+    { key: 'marketing_vacancy', label: t('mediaSubfilterMarketing'), icon: '📢', count: allVisuals.filter(v => v.productSub === 'marketing_vacancy').length },
+    { key: 'business_development_vacancy', label: t('mediaSubfilterBusinessDev') || 'Business Development Vacancy', icon: '💼', count: allVisuals.filter(v => v.productSub === 'business_development_vacancy').length },
+    { key: 'jewellery_scheme', label: t('mediaSubfilterJewelleryScheme'), icon: '🏆', count: allVisuals.filter(v => v.productSub === 'jewellery_scheme').length + allVideos.filter(v => v.productSub === 'jewellery_scheme').length },
+    { key: 'jewellery_equipment', label: t('mediaSubfilterGoldProcessing'), icon: '⚙️', count: allVisuals.filter(v => v.productSub === 'jewellery_equipment').length },
+    { key: 'modular_kitchen', label: t('mediaSubfilterModularKitchens'), icon: '🍳', count: allVisuals.filter(v => v.productSub === 'modular_kitchen').length + allVideos.filter(v => v.productSub === 'modular_kitchen').length },
+    { key: 'luxury_living', label: t('mediaSubfilterLuxuryLiving'), icon: '🛋️', count: allVisuals.filter(v => v.productSub === 'luxury_living').length },
+    { key: 'corporate_branding', label: t('mediaSubfilterCommercialMall'), icon: '🏢', count: allVisuals.filter(v => v.productSub === 'corporate_branding').length + allVideos.filter(v => v.productSub === 'corporate_branding').length },
+    { key: 'certificates', label: t('mediaSubfilterCertificates'), icon: '📄', count: allCredentials.length + allVisuals.filter(v => v.productSub === 'certificates').length },
+    { key: 'video_films', label: t('mediaSubfilterVideos'), icon: '🎬', count: allVideos.length },
+    { key: 'audio_jingles', label: t('mediaSubfilterAudio'), icon: '🎙️', count: allAudios.length },
+  ];
+
+  useEffect(() => {
+    if (subFilterBarRef.current) {
+      const activeBtn = subFilterBarRef.current.querySelector('.mg-subfilter-btn.active') as HTMLElement;
+      if (activeBtn) {
+        activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+  }, [productSubFilter]);
+
+  const scrollSubFilter = (direction: 'left' | 'right') => {
+    if (subFilterBarRef.current) {
+      const offset = direction === 'left' ? -220 : 220;
+      subFilterBarRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+    }
+  };
+
+  const handleRequestMediaKit = () => {
+    showToast('Requesting Full Media Kit & Blueprint Credentials...', 'success');
+    const topic = searchQuery ? `"${searchQuery}"` : productSubFilter ? productSubFilter : filter;
+    const msg = encodeURIComponent(`Hello Sarkar Enterprise, I am interested in your ${topic} products and would like to request the complete Media Kit, Catalog & Blueprint Credentials.`);
+    window.open(`https://wa.me/918670783810?text=${msg}`, '_blank');
+  };
+
+  return (
+    <PageWrapper>
+      <section className="section" style={{ paddingTop: '50px', paddingBottom: '80px' }}>
+        <div className="container">
+
+          {/* Hero Header */}
+          <div className="media-hero-header" style={{ marginBottom: '32px' }}>
+            <div className="media-hero-breadcrumb">
+              <Link to="/">{t('breadcrumbHome')}</Link> / {t('mediaBreadcrumb')}
+            </div>
+            <h1 className="media-hero-title">
+              {t('mediaHeroTitle1')} <span>{t('mediaHeroTitle2')}</span>
+            </h1>
+            <p className="media-hero-sub">
+              {t('mediaHeroSub')}
+            </p>
+          </div>
+
+          {/* 1. Instant Search Input */}
+          <div className="mg-search-wrap">
+            <Search className="mg-search-icon" size={20} />
+            <input 
+              type="text"
+              className="mg-search-input"
+              placeholder={t('mediaSearchPlaceholder')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="mg-search-clear" onClick={() => setSearchQuery('')} title="Clear search">
+                <X size={18} />
+              </button>
+            )}
+          </div>
+
+          {/* 2. Responsive Product & Category Sub-Filter Bar */}
+          <div className="mg-subfilter-container">
+            {/* Horizontal Swipeable Chip Row with Desktop Arrow Controls */}
+            <div className="mg-subfilter-bar-wrapper">
+              <button 
+                type="button"
+                className="mg-scroll-nav-btn mg-scroll-prev" 
+                onClick={() => scrollSubFilter('left')}
+                aria-label="Scroll left"
+                title="Scroll categories left"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              <div className="mg-subfilter-bar" ref={subFilterBarRef}>
+                {subFilterOptions.map(opt => {
+                  const isActive = productSubFilter === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      className={`mg-subfilter-btn ${isActive ? 'active' : ''}`}
+                      onClick={() => setProductSubFilter(opt.key)}
+                    >
+                      <span className="mg-btn-icon">{opt.icon}</span>
+                      <span className="mg-btn-label">{opt.label}</span>
+                      <span className="mg-count-badge">{opt.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button 
+                type="button"
+                className="mg-scroll-nav-btn mg-scroll-next" 
+                onClick={() => scrollSubFilter('right')}
+                aria-label="Scroll right"
+                title="Scroll categories right"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Search Result Counter Summary */}
+          {(searchQuery || productSubFilter !== 'chanachur' || filter !== 'all') && (
+            <div style={{ textAlign: 'center', color: 'var(--gold)', fontSize: '0.9rem', marginBottom: '30px', fontWeight: 600 }}>
+              {t('mediaShowingCount')} {totalFilteredCount} {t('mediaMatchingItems')} {searchQuery ? `${t('mediaForQuery')} "${searchQuery}"` : ''}
+            </div>
+          )}
+
+          {/* Empty / Cleared State or No Match State */}
+          {totalFilteredCount === 0 && (
+            <div style={{ textAlign: 'center', padding: '60px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', margin: '40px 0' }}>
+              <Filter size={40} style={{ color: 'var(--gold)', marginBottom: '16px', opacity: 0.7 }} />
+              <h3 style={{ color: '#ffffff', fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', marginBottom: '8px' }}>
+                {sourceMedia.length === 0 ? 'No Media Items Published' : t('mediaNoMatchTitle')}
+              </h3>
+              <p style={{ color: '#a3a3a3', fontSize: '0.92rem', marginBottom: '20px' }}>
+                {sourceMedia.length === 0 
+                  ? 'All media assets have been removed or cleared. New photos, videos, audio jingles, and certificates can be uploaded anytime via the Admin Panel.'
+                  : t('mediaNoMatchSub')}
+              </p>
+              {sourceMedia.length > 0 && (
+                <button 
+                  className="btn btn-outline"
+                  onClick={() => { setFilter('all'); setProductSubFilter('chanachur'); setSearchQuery(''); }}
+                >
+                  {t('mediaResetFilters')}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* SECTION 1: VISUAL ASSETS (IMAGES) */}
+          {filteredVisuals.length > 0 && (filter === 'all' || filter === 'fmcg' || filter === 'jewellery' || filter === 'interior') && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              style={{ marginBottom: '80px' }}
+            >
+              <div className="mg-section-badge">{t('mediaVisualsBadge')}</div>
+              <h2 className="mg-section-title">{t('mediaVisualsTitle')}</h2>
+
+              <div className="visual-assets-grid">
+                {filteredVisuals.map((v, index) => (
+                  <VisualMediaCard
+                    key={`${v.id || 'vis'}-${index}`}
+                    id={v.id || index}
+                    url={getEncodedUrl(v.url)}
+                    title={v.title}
+                    productLabel={v.productLabel}
+                    fallbackSvg={getFallbackSvg(v.title)}
+                    onOpenZoom={() => openZoomGallery(filteredVisuals.map(vis => ({ url: getEncodedUrl(vis.url), title: vis.title })), index, v.title)}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* SECTION 2: VIDEO HIGHLIGHTS (VIDEOS) */}
+          {filteredVideos.length > 0 && (filter === 'all' || filter === 'videos' || filter === 'company' || filter === 'fmcg' || filter === 'jewellery' || filter === 'interior') && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              style={{ marginBottom: '80px' }}
+            >
+              <div className="mg-section-badge">{t('mediaVideosBadge')}</div>
+              <h2 className="mg-section-title">{t('mediaVideosTitle')}</h2>
+
+              <div className="video-assets-grid">
+                {filteredVideos.map((vid: any, idx: number) => (
+                  <VideoMediaCard
+                    key={`${vid.id || 'vid'}-${idx}`}
+                    vid={vid}
+                    onPlay={playVideo}
+                    watchText={t('mediaWatchVideo')}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* SECTION 3: AUDIO CAMPAIGNS (AUDIO) */}
+          {filteredAudios.length > 0 && (filter === 'all' || filter === 'audio' || filter === 'fmcg') && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              style={{ marginBottom: '80px' }}
+            >
+              <div className="mg-section-badge">{t('mediaAudioBadge')}</div>
+              <h2 className="mg-section-title">{t('mediaAudioTitle')}</h2>
+              <p className="mg-section-sub">
+                {t('mediaAudioSub')}
+              </p>
+
+              <div className="audio-campaigns-grid">
+                {filteredAudios.map((ac: any, idx: number) => {
+                  const audioSrc = ac.url || ac.remoteUrl || ac.fallbackUrl;
+                  const lowerTitle = (ac.title || '').toLowerCase();
+                  const lowerDesc = (ac.desc || '').toLowerCase();
+                  
+                  // Auto-resolve badge label if mismatched or default
+                  let badgeLabel = ac.productLabel;
+                  if (!badgeLabel || badgeLabel === 'Priti-Ji Chanachur' || badgeLabel === 'Custom Asset' || badgeLabel === 'General Product') {
+                    if (lowerTitle.includes('frog') || lowerTitle.includes('mosquito') || lowerDesc.includes('mosquito') || lowerDesc.includes('frog')) {
+                      badgeLabel = 'Angry Frog Mosquito Killer';
+                    } else if (lowerTitle.includes('soan') || lowerTitle.includes('papdi') || lowerDesc.includes('soan')) {
+                      badgeLabel = 'Munmun Soan Papdi';
+                    } else if (lowerTitle.includes('jewel') || lowerTitle.includes('gold') || lowerTitle.includes('stylo')) {
+                      badgeLabel = 'Stylo Fine Jewellery';
+                    } else if (lowerTitle.includes('interior') || lowerTitle.includes('kitchen') || lowerTitle.includes('decor')) {
+                      badgeLabel = 'Luxury Interiors';
+                    } else if (lowerTitle.includes('chanachur') || lowerTitle.includes('priti')) {
+                      badgeLabel = 'Priti-Ji Chanachur';
+                    } else {
+                      badgeLabel = ac.productLabel || 'Commercial Radio Jingle';
+                    }
+                  }
+
+                  return (
+                    <div className="audio-card" key={`${ac.id || 'aud'}-${idx}`}>
+                      <div className="audio-card-badge">
+                        <Volume2 size={13} /> {badgeLabel}
+                      </div>
+                      <h3 className="audio-card-title">{ac.title}</h3>
+                      <p className="audio-card-desc">{ac.desc || 'Promotional radio, street speaker announcement & dealer campaign track'}</p>
+
+                      <div className="audio-player-wrap" style={{ marginTop: '12px' }}>
+                        {audioSrc ? (
+                          <audio 
+                            controls 
+                            preload="auto"
+                            src={audioSrc}
+                            onError={(e) => {
+                              const target = e.target as HTMLAudioElement;
+                              if (ac.fallbackUrl && target.src !== ac.fallbackUrl) {
+                                target.src = ac.fallbackUrl;
+                              }
+                            }}
+                            style={{ 
+                              width: '100%', 
+                              height: '42px', 
+                              borderRadius: '8px', 
+                              outline: 'none',
+                              filter: 'invert(0.9) hue-rotate(180deg)'
+                            }}
+                          />
+                        ) : (
+                          <div style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', fontSize: '0.82rem', color: '#ffd700' }}>
+                            ⚠️ Audio track stream awaiting file link
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+
+          {/* SECTION 4: CREDENTIALS & CASE STUDIES */}
+          {(filter === 'all' || filter === 'credentials' || productSubFilter === 'certificates') && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4 }}
+              style={{ marginBottom: '80px' }}
+            >
+              <div className="mg-section-badge">{t('mediaCredentialsBadge')}</div>
+              
+              <div className="credentials-box" style={{ marginBottom: '40px' }}>
+                <h2 className="credentials-title">
+                  {t('mediaCredentialsTitleLine1')} <span>{t('mediaCredentialsTitleLine2')}</span>
+                </h2>
+                <p className="credentials-desc">
+                  {t('mediaCredentialsDesc')}
+                </p>
+                <button 
+                  className="request-kit-btn"
+                  onClick={handleRequestMediaKit}
+                >
+                  <Download size={16} /> {t('mediaRequestKitBtn')}
+                </button>
+              </div>
+
+              {/* Interactive Certificate Cards Grid */}
+              {filteredCredentials.length > 0 && (
+                <div className="visual-assets-grid">
+                  {filteredCredentials.map((cred: any, idx: number) => (
+                    <CredentialMediaCard
+                      key={`${cred.id || 'cred'}-${idx}`}
+                      cred={cred}
+                      onOpenZoom={() => openZoomGallery(filteredCredentials.map(c => ({ url: getEncodedUrl(c.url), title: c.title })), idx, cred.title)}
+                      fallbackSvg={getFallbackSvg(cred.title)}
+                    />
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+        </div>
+      </section>
+    </PageWrapper>
+  );
+};
+
+export const Faq = () => {
+  const { t } = useLanguage();
+  const [openId, setOpenId] = useState<number | null>(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategoryKey, setActiveCategoryKey] = useState('All');
+
+  const categories = [
+    { key: 'All', label: t('faqCategoryAll') },
+    { key: 'Services & Scope', label: t('faqCategoryServices') },
+    { key: 'Pricing & Fees', label: t('faqCategoryPricing') },
+    { key: 'Operations & Delivery', label: t('faqCategoryOperations') }
+  ];
+
+  const faqs = [
+    {
+      id: 1,
+      num: '01',
+      categoryKey: 'Services & Scope',
+      question: t('faqQ1Question'),
+      answer: t('faqQ1Answer'),
+      highlights: [t('faqQ1Hl1'), t('faqQ1Hl2'), t('faqQ1Hl3')]
+    },
+    {
+      id: 2,
+      num: '02',
+      categoryKey: 'Services & Scope',
+      question: t('faqQ2Question'),
+      answer: t('faqQ2Answer'),
+      highlights: [t('faqQ2Hl1'), t('faqQ2Hl2'), t('faqQ2Hl3')]
+    },
+    {
+      id: 3,
+      num: '03',
+      categoryKey: 'Pricing & Fees',
+      question: t('faqQ3Question'),
+      answer: t('faqQ3Answer'),
+      highlights: [t('faqQ3Hl1'), t('faqQ3Hl2')]
+    },
+    {
+      id: 4,
+      num: '04',
+      categoryKey: 'Pricing & Fees',
+      question: t('faqQ4Question'),
+      answer: t('faqQ4Answer'),
+      highlights: [t('faqQ4Hl1')]
+    },
+    {
+      id: 5,
+      num: '05',
+      categoryKey: 'Pricing & Fees',
+      question: t('faqQ5Question'),
+      answer: t('faqQ5Answer'),
+      highlights: [t('faqQ5Hl1')]
+    },
+    {
+      id: 6,
+      num: '06',
+      categoryKey: 'Pricing & Fees',
+      question: t('faqQ6Question'),
+      answer: t('faqQ6Answer'),
+      highlights: [t('faqQ6Hl1')]
+    },
+    {
+      id: 7,
+      num: '07',
+      categoryKey: 'Operations & Delivery',
+      question: t('faqQ7Question'),
+      answer: t('faqQ7Answer'),
+      highlights: [t('faqQ7Hl1'), t('faqQ7Hl2'), t('faqQ7Hl3'), t('faqQ7Hl4')]
+    },
+    {
+      id: 8,
+      num: '08',
+      categoryKey: 'Operations & Delivery',
+      question: t('faqQ8Question'),
+      answer: t('faqQ8Answer'),
+      highlights: [t('faqQ8Hl1'), t('faqQ8Hl2')]
+    },
+    {
+      id: 9,
+      num: '09',
+      categoryKey: 'Services & Scope',
+      question: t('faqQ9Question'),
+      answer: t('faqQ9Answer'),
+      highlights: [t('faqQ9Hl1'), t('faqQ9Hl2')]
+    },
+    {
+      id: 10,
+      num: '10',
+      categoryKey: 'Operations & Delivery',
+      question: t('faqQ10Question'),
+      answer: t('faqQ10Answer'),
+      highlights: [t('faqQ10Hl1'), t('faqQ10Hl2')]
+    }
+  ];
+
+  const filteredFaqs = faqs.filter(f => {
+    const matchesCategory = activeCategoryKey === 'All' || f.categoryKey === activeCategoryKey;
+    const matchesSearch = f.question.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          f.answer.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  return (
+    <PageWrapper>
+      {/* Schema.org FAQPage Structured Data for Google Search Rich Snippets */}
+      <FAQJsonLd faqs={faqs} />
+
+      {/* FAQ Hero */}
+      <section className="faq-hero">
+        <div className="container">
+          <div className="faq-breadcrumb">
+            <Link to="/">{t('breadcrumbHome')}</Link> / {t('breadcrumbFaq')}
+          </div>
+          <h1 className="faq-hero-title">
+            {t('faqTitle')}
+          </h1>
+          <p className="faq-hero-sub">
+            {t('faqSubtitle')}
+          </p>
+
+          {/* Search Bar */}
+          <motion.div 
+            className="faq-search-wrapper"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <span className="faq-search-icon">🔍</span>
+            <input 
+              type="text" 
+              className="faq-search-input"
+              placeholder={t('faqSearchPlaceholder')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="faq-search-clear" onClick={() => setSearchQuery('')}>×</button>
+            )}
+          </motion.div>
+
+          {/* Filter Chips */}
+          <motion.div 
+            className="faq-categories"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            {categories.map((cat) => (
+              <button
+                key={cat.key}
+                className={`faq-cat-chip ${activeCategoryKey === cat.key ? 'active' : ''}`}
+                onClick={() => setActiveCategoryKey(cat.key)}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* FAQ List */}
+      <section style={{ paddingBottom: '80px' }}>
+        <div className="container faq-container">
+          {filteredFaqs.length === 0 ? (
+            <motion.div 
+              className="faq-empty-state"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <h3>{t('faqNoMatchTitle')}</h3>
+              <p>{t('faqNoMatchSub')}</p>
+              <button className="btn-reset-search" onClick={() => { setSearchQuery(''); setActiveCategoryKey('All'); }}>
+                {t('faqResetSearch')}
+              </button>
+            </motion.div>
+          ) : (
+            filteredFaqs.map((f, index) => {
+              const isOpen = openId === f.id;
+              return (
+                <motion.div 
+                  key={f.id} 
+                  className={`faq-card ${isOpen ? 'is-open' : ''}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.35, delay: index * 0.04 }}
+                >
+                  <button 
+                    className={`faq-question-btn ${isOpen ? 'open' : ''}`}
+                    onClick={() => setOpenId(isOpen ? null : f.id)}
+                  >
+                    <div className="faq-q-left">
+                      <span className="faq-num-pill">{f.num}</span>
+                      <span className="faq-question-text">{f.question}</span>
+                    </div>
+                    <motion.div 
+                      className={`faq-toggle-circle ${isOpen ? 'open' : ''}`}
+                      animate={{ rotate: isOpen ? 180 : 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      {isOpen ? '−' : '+'}
+                    </motion.div>
+                  </button>
+
+                  <AnimatePresence>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        <div className="faq-answer-body">
+                          <p className="faq-answer-text">{f.answer}</p>
+                          {f.highlights && f.highlights.length > 0 && (
+                            <div className="faq-highlights-pills">
+                              <span className="faq-hl-label">{t('faqKeyHighlightsLabel')}</span>
+                              {f.highlights.map((hl, i) => (
+                                <span key={i} className="faq-hl-tag">{hl}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              );
+            })
+          )}
+
+          {/* Contact Support CTA Box */}
+          <motion.div 
+            className="faq-cta-box"
+            initial={{ opacity: 0, scale: 0.96 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="faq-cta-content">
+              <h3>{t('faqCtaTitle')}</h3>
+              <p>{t('faqCtaDesc')}</p>
+            </div>
+            <div className="faq-cta-btns">
+              <a href="tel:+918670783810" className="faq-cta-btn phone">
+                {t('faqCtaCallBtn')}
+              </a>
+              <a 
+                href="https://wa.me/918670783810?text=Hello%20Sarkar%20Enterprise%2C%20I%20have%20a%20query." 
+                target="_blank" 
+                rel="noreferrer"
+                className="faq-cta-btn whatsapp"
+              >
+                {t('faqCtaWhatsappBtn')}
+              </a>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+    </PageWrapper>
+  );
+};
